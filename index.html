@@ -89,6 +89,7 @@ var topic = null, article = null, fullText = null, articles = null;
 var qaMessages = [], qaHistory = [], currentQ = null;
 var qCount = 0, scores = [], finalScore = null;
 var qStart = null, lessonStart = null, maxQ = 5;
+var repeatPenalty = false;
 var speaking = false, listening = false, loading = false, rec = null;
 var timerInterval = null, timerSeconds = 0, questionVisible = false;
 
@@ -245,7 +246,10 @@ function renderQA() {
     html += '<div class="qa-btns">';
     html += '<button class="btn-mic' + (listening ? ' on' : '') + '" id="bMic" style="flex:1;padding:14px;font-size:14px;font-weight:700">' + (listening ? '\uD83D\uDFE5 Release to Send' : '\uD83C\uDF99 Hold to Speak') + '</button>';
     html += '</div>';
-    html += '<button class="btn-send" id="bSend"' + (loading ? ' disabled' : '') + '>Send typed answer \u2192</button>';
+    html += '<div style="display:flex;gap:8px">';
+    html += '<button class="btn-send" id="bSend"' + (loading ? ' disabled' : '') + '>Send \u2192</button>';
+    html += '<button id="bRepeat" style="background:#1a1a2e;border:1px solid #ffffff22;border-radius:12px;padding:12px;font-size:13px;color:#8888aa;cursor:pointer;white-space:nowrap" ' + (loading ? 'disabled' : '') + '>\uD83D\uDD01 Repeat (-50%)</button>';
+    html += '</div>';
     html += '</div>';
   } else {
     html += '<div style="padding:14px;border-top:1px solid #ffffff12;flex-shrink:0"><button class="btn-primary" id="bHome">Back to Home</button></div>';
@@ -348,6 +352,13 @@ function bind() {
     var inp=document.getElementById("qaInput");
     if(inp && inp.value.trim()) submitAnswer(inp.value.trim());
   });
+  on("bRepeat", function(){
+    if(!currentQ || loading) return;
+    repeatPenalty = true;
+    qaMessages.push({r:"ai",c:"\uD83D\uDD01 Repeating question... (-50% score penalty)"});
+    render(); scrollChat();
+    spk(currentQ, function(){ startTimer(); });
+  });
   on("bHome", function(){ V="home"; topic=null; article=null; fullText=null; qaMessages=[]; qCount=0; scores=[]; finalScore=null; render(); });
   var dchips = document.querySelectorAll("[data-dur]");
   for (var i=0;i<dchips.length;i++) {
@@ -394,7 +405,7 @@ async function fetchFirstQ() {
       [{role:"user",content:"Article:\n"+fullText+"\n\nAsk me the first question."}],
       "You are an English conversation teacher. Ask ONE clear comprehension or opinion question about the article on \""+topic+"\" at "+D.settings.level+" level. Return ONLY the question text."
     );
-    currentQ=q;
+    currentQ=q; repeatPenalty=false;
     qaMessages=[{r:"q",c:q,idx:0,visible:false}];
     loading=false; render(); scrollChat();
     spk(q, function(){ startTimer(); });
@@ -418,6 +429,8 @@ async function submitAnswer(ans) {
     sc = JSON.parse(t.replace(/```json|```/g,"").trim());
   } catch(e) {}
   var avg = Math.round((sc.content+sc.grammar+sc.speed+sc.vocabulary)/4);
+  if(repeatPenalty) avg = Math.round(avg/2);
+  repeatPenalty = false;
   scores.push(avg); qCount++;
   qaMessages.push({r:"score",c:sc.feedback+"  \u2022  Score: "+avg+"/100"});
   qaHistory.push({role:"user",content:"Article:\n"+fullText+"\n\nQ: "+currentQ});
@@ -434,7 +447,7 @@ async function submitAnswer(ans) {
     try {
       var msgs = qaHistory.concat([{role:"user",content:"Ask me the next question about the article."}]);
       var nextQ = await claude(msgs,"You are an English conversation teacher. Ask ONE more question about the article on \""+topic+"\". Return ONLY the question text.");
-      currentQ=nextQ;
+      currentQ=nextQ; repeatPenalty=false;
       var qIdx = qaMessages.length;
       qaMessages.push({r:"q",c:nextQ,idx:qIdx,visible:false});
       render(); scrollChat();

@@ -333,10 +333,6 @@ function bind() {
   if (micBtn) {
     micBtn.onmousedown = function(e){ e.preventDefault(); if(!listening) startListen(); };
     micBtn.ontouchstart = function(e){ e.preventDefault(); if(!listening) startListen(); };
-    document._micMouseUp = function(e){ if(listening){ stopListenAndSend(); } };
-    document._micTouchEnd = function(e){ if(listening){ e.preventDefault(); stopListenAndSend(); } };
-    document.onmouseup = document._micMouseUp;
-    document.ontouchend = document._micTouchEnd;
   }
   var qb = document.getElementById("qBubble");
   if (qb) {
@@ -453,38 +449,61 @@ function scrollChat() { setTimeout(function(){ var c=document.getElementById("qa
 
 var lastTranscript = "";
 var keepListening = false;
+var sessionTranscript = "";
+
 function startListen() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert("Speech recognition requires Chrome on Android."); return; }
   lastTranscript = "";
+  sessionTranscript = "";
   keepListening = true;
   listening = true;
   render();
   startRecSession();
 }
+
 function startRecSession() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR || !keepListening) return;
-  rec = new SR(); rec.lang="en-US"; rec.interimResults=true; rec.continuous=false;
-  rec.onresult = function(e){
-    var t="";
-    for(var i=0;i<e.results.length;i++) t+=e.results[i][0].transcript;
-    if(t) lastTranscript = (lastTranscript+" "+t).trim();
-    var inp=document.getElementById("qaInput"); if(inp) inp.value=lastTranscript;
+  sessionTranscript = "";
+  rec = new SR();
+  rec.lang = "en-US";
+  rec.interimResults = true;
+  rec.continuous = false;
+  rec.onresult = function(e) {
+    var interim = "";
+    var final = "";
+    for (var i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    sessionTranscript = final || interim;
+    var inp = document.getElementById("qaInput");
+    if (inp) inp.value = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
   };
-  rec.onerror = function(){ if(keepListening) setTimeout(startRecSession, 100); };
-  rec.onend = function(){ if(keepListening) setTimeout(startRecSession, 100); };
+  rec.onend = function() {
+    if (sessionTranscript) lastTranscript = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
+    sessionTranscript = "";
+    if (keepListening) setTimeout(startRecSession, 80);
+  };
+  rec.onerror = function() {
+    if (keepListening) setTimeout(startRecSession, 80);
+  };
   try { rec.start(); } catch(e) {}
 }
+
 function stopListenAndSend() {
   keepListening = false;
   listening = false;
-  var saved = lastTranscript;
-  try { if(rec) rec.stop(); } catch(e) {}
-  setTimeout(function(){
-    if(saved.trim()) submitAnswer(saved.trim());
+  try { if (rec) rec.stop(); } catch(e) {}
+  setTimeout(function() {
+    var full = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
+    full = full.trim();
+    lastTranscript = "";
+    sessionTranscript = "";
+    if (full) submitAnswer(full);
     else render();
-  }, 300);
+  }, 350);
 }
 function stopListen() { keepListening=false; try{if(rec) rec.stop();}catch(e){} listening=false; render(); }
 function startTimer() {
@@ -499,6 +518,9 @@ function startTimer() {
   },1000);
 }
 function stopTimer() { if(timerInterval){clearInterval(timerInterval);timerInterval=null;} timerSeconds=0; }
+
+document.addEventListener("mouseup", function(){ if(listening) stopListenAndSend(); });
+document.addEventListener("touchend", function(e){ if(listening){ e.preventDefault(); stopListenAndSend(); } }, {passive:false});
 
 render();
 </script>

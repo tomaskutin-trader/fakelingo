@@ -1,739 +1,417 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
 <meta charset="UTF-8"/>
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
 <title>Fakelingo</title>
-<meta name="application-name" content="Fakelingo"/>
-<meta name="apple-mobile-web-app-title" content="Fakelingo"/>
-<meta name="apple-mobile-web-app-capable" content="yes"/>
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
 <meta name="mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-title" content="Fakelingo"/>
 <meta name="theme-color" content="#0d0d15"/>
-<link rel="preconnect" href="https://fonts.googleapis.com"/>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
-
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet"/>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-html,body{height:100%;background:#0d0d15;font-family:'Outfit',sans-serif;color:#f0f0f8;overflow:hidden}
+html,body{height:100%;background:#0d0d15;font-family:'Outfit',sans-serif;color:#f0f0f8}
 button{font-family:'Outfit',sans-serif;cursor:pointer;border:none;outline:none;background:none}
 input,textarea{font-family:'Outfit',sans-serif;outline:none}
-::-webkit-scrollbar{width:3px}
-::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
-
-#app{width:100%;height:100dvh;overflow:hidden;position:relative}
-.screen{position:absolute;inset:0;overflow-y:auto;padding:24px 20px 40px;display:flex;flex-direction:column;gap:16px;animation:fadeUp .25s ease}
-.qa-screen{position:absolute;inset:0;display:flex;flex-direction:column;animation:fadeUp .2s ease}
-
-@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+textarea::placeholder,input::placeholder{color:#8888aa}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-thumb{background:#333;border-radius:2px}
+.screen{max-width:480px;margin:0 auto;padding:24px 20px 40px;display:flex;flex-direction:column;gap:14px;min-height:100dvh;animation:fadeUp .2s ease}
+.qa-wrap{max-width:480px;margin:0 auto;display:flex;flex-direction:column;height:100dvh;animation:fadeUp .2s ease}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @keyframes spin{to{transform:rotate(360deg)}}
-@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
-
-/* ── TYPOGRAPHY ── */
-.logo{font-family:'Space Mono',monospace;font-weight:700;font-size:15px;color:#22d3ee;letter-spacing:1px;background:#22d3ee18;padding:6px 12px;border-radius:8px}
-.screen-title{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;color:#f0f0f8;line-height:1.2}
-.screen-sub{font-size:13px;color:#8888aa}
-.muted{color:#8888aa}
-
-/* ── BUTTONS ── */
-.btn-primary{background:linear-gradient(135deg,#22d3ee,#4ade80);color:#0a0a0f;border:none;border-radius:14px;padding:16px;font-size:16px;font-weight:700;width:100%;cursor:pointer;letter-spacing:.3px;transition:opacity .15s}
-.btn-primary:disabled{opacity:.5}
-.btn-secondary{background:#13131f;color:#f0f0f8;border:1px solid #ffffff12;border-radius:12px;padding:12px 20px;font-size:14px;font-weight:500;cursor:pointer}
-.btn-back{background:transparent;color:#8888aa;font-size:14px;text-align:left;padding:2px 0;width:fit-content}
-.btn-nav{flex:1;background:#13131f;color:#f0f0f8;border:1px solid #ffffff12;border-radius:12px;padding:14px;font-size:14px;font-weight:500;text-align:center}
-
-/* ── CARDS ── */
-.card{background:#13131f;border:1px solid #ffffff12;border-radius:16px;padding:18px}
-.card-sm{background:#13131f;border:1px solid #ffffff12;border-radius:12px;padding:14px 16px}
-
-/* ── HOME ── */
-.home-header{display:flex;justify-content:space-between;align-items:center}
-.home-date{font-size:12px;color:#8888aa;text-transform:capitalize}
-.hero-card{background:linear-gradient(135deg,#13131f,#1a1a2e);border:1px solid #ffffff12;border-radius:20px;padding:32px 24px;text-align:center;margin-top:4px}
-.hero-emoji{font-size:52px;margin-bottom:8px}
-.hero-title{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:#f0f0f8;letter-spacing:-1px}
-.hero-sub{font-size:13px;color:#8888aa;margin-top:6px;letter-spacing:2px;text-transform:uppercase}
-.streak-badge{margin-top:14px;display:inline-block;background:#f59e0b22;border:1px solid #f59e0b44;color:#fbbf24;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
-.last-score-card{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
-.last-score-label{color:#8888aa;font-size:13px}
-.last-score-val{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:#4ade80}
+.logo{font-family:'Space Mono',monospace;font-weight:700;font-size:14px;color:#22d3ee;letter-spacing:1px;background:#22d3ee18;padding:6px 12px;border-radius:8px;display:inline-block}
+.hero-card{background:linear-gradient(135deg,#13131f,#1a1a2e);border:1px solid #ffffff12;border-radius:20px;padding:28px 24px;text-align:center}
+.hero-title{font-family:'Space Mono',monospace;font-size:24px;font-weight:700;color:#f0f0f8;letter-spacing:-1px}
+.streak{margin-top:12px;display:inline-block;background:#f59e0b22;border:1px solid #f59e0b44;color:#fbbf24;border-radius:20px;padding:4px 14px;font-size:13px;font-weight:600}
+.card{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:14px 18px}
+.row{display:flex;justify-content:space-between;align-items:center}
+.btn-primary{background:linear-gradient(135deg,#22d3ee,#4ade80);color:#0a0a0f;border-radius:14px;padding:15px;font-size:15px;font-weight:700;width:100%;letter-spacing:.3px;border:none;cursor:pointer}
+.btn-back{background:transparent;color:#8888aa;font-size:13px;padding:2px 0;text-align:left;cursor:pointer}
+.btn-nav{flex:1;background:#13131f;color:#f0f0f8;border:1px solid #ffffff12;border-radius:12px;padding:13px;font-size:14px;font-weight:500;cursor:pointer}
 .nav-row{display:flex;gap:10px}
-
-/* ── TOPICS ── */
+.title{font-family:'Space Mono',monospace;font-size:20px;font-weight:700;color:#f0f0f8}
+.muted{color:#8888aa;font-size:13px}
+.chip{background:#13131f;border:1px solid #ffffff12;border-radius:20px;padding:7px 13px;font-size:13px;color:#f0f0f8;font-weight:500;cursor:pointer;transition:all .15s}
+.chip.active{background:#22d3ee22;border-color:#22d3ee;color:#22d3ee;font-weight:700}
 .topic-grid{display:flex;flex-wrap:wrap;gap:8px}
-.topic-chip{background:#13131f;border:1px solid #ffffff12;border-radius:20px;padding:8px 14px;font-size:13px;color:#f0f0f8;font-weight:500;transition:all .15s;cursor:pointer}
-.topic-chip.active{background:#22d3ee22;border-color:#22d3ee;color:#22d3ee}
-.custom-row{display:flex;gap:8px;margin-top:4px}
-.custom-input{flex:1;background:#13131f;border:1px solid #ffffff12;border-radius:12px;padding:12px 14px;color:#f0f0f8;font-size:14px}
-.custom-input::placeholder{color:#8888aa}
-.custom-btn{background:#22d3ee;color:#0a0a0f;border-radius:12px;padding:12px 18px;font-size:14px;font-weight:700;border:none;cursor:pointer}
-.custom-btn:disabled{opacity:.4}
-
-/* ── ARTICLES ── */
-.article-list{display:flex;flex-direction:column;gap:12px}
-.article-card{background:#13131f;border:1px solid #ffffff12;border-radius:16px;padding:18px;text-align:left;width:100%;cursor:pointer;transition:border-color .15s;display:block}
-.article-card:hover{border-color:#22d3ee44}
-.article-card-title{font-size:15px;font-weight:700;color:#f0f0f8;margin-bottom:4px;line-height:1.4}
-.article-card-meta{font-size:11px;color:#8888aa;margin-bottom:8px;letter-spacing:.5px;text-transform:uppercase}
-.article-card-summary{font-size:13px;color:#aaaacc;line-height:1.5}
-.article-card-arrow{font-size:12px;color:#22d3ee;margin-top:10px;font-weight:600}
-
-/* ── LESSON READING ── */
-.article-header{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px}
-.article-header-title{font-size:16px;font-weight:700;color:#f0f0f8;line-height:1.4}
-.article-header-meta{font-size:11px;color:#8888aa;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-.article-body{font-size:15px;color:#ccccdd;line-height:1.8;background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:18px}
-.btn-speak{background:#1a1a2e;border:1px solid #ffffff12;border-radius:12px;padding:13px;color:#f0f0f8;font-size:14px;font-weight:600;width:100%;transition:all .15s;cursor:pointer}
-.btn-speak.active{border-color:#22d3ee;color:#22d3ee;background:#22d3ee15}
-
-/* ── Q&A ── */
-.qa-header{display:flex;justify-content:space-between;align-items:center;padding:16px 20px;border-bottom:1px solid #ffffff12;background:#13131f;flex-shrink:0}
-.qa-title{font-size:15px;font-weight:700;color:#f0f0f8}
-.qa-progress{font-size:12px;color:#8888aa;font-family:'Space Mono',monospace}
-.qa-chat{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:10px}
-.bubble{max-width:85%;border-radius:16px;padding:12px 16px;font-size:14px;line-height:1.55;animation:fadeUp .2s ease;white-space:pre-wrap}
-.bubble-ai{background:#1a1a2e;color:#f0f0f8;align-self:flex-start;border-bottom-left-radius:4px}
-.bubble-user{background:linear-gradient(135deg,#22d3ee22,#4ade8022);border:1px solid #22d3ee33;color:#f0f0f8;align-self:flex-end;border-bottom-right-radius:4px}
-.bubble-score{background:#4ade8018;border:1px solid #4ade8033;color:#86efac;font-size:13px;font-style:italic;align-self:flex-start}
-.typing{letter-spacing:4px;animation:pulse 1s infinite}
-.qa-input-area{border-top:1px solid #ffffff12;padding:12px 16px;background:#13131f;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
-.qa-textarea{background:#0d0d15;border:1px solid #ffffff12;border-radius:12px;padding:10px 14px;color:#f0f0f8;font-size:14px;resize:none;width:100%}
-.qa-textarea::placeholder{color:#8888aa}
-.qa-buttons{display:flex;gap:8px}
-.btn-mic{background:#1a1a2e;border:1px solid #ffffff12;border-radius:12px;padding:12px 16px;font-size:20px;flex:0 0 auto;transition:all .15s;cursor:pointer;line-height:1}
-.btn-mic.listening{background:#f8717122;border-color:#f87171;animation:pulse 1s infinite}
+.custom-row{display:flex;gap:8px}
+.inp{flex:1;background:#13131f;border:1px solid #ffffff12;border-radius:12px;padding:11px 14px;color:#f0f0f8;font-size:14px}
+.btn-go{background:#22d3ee;color:#0a0a0f;border-radius:12px;padding:11px 18px;font-size:14px;font-weight:700;border:none;cursor:pointer}
+.article-list{display:flex;flex-direction:column;gap:10px}
+.article-card{background:#13131f;border:1px solid #ffffff12;border-radius:16px;padding:16px;text-align:left;width:100%;cursor:pointer}
+.loading-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;min-height:240px}
+.spinner{width:30px;height:30px;border:3px solid #22d3ee33;border-top:3px solid #22d3ee;border-radius:50%;animation:spin .8s linear infinite}
+.error-box{background:#f8717118;border:1px solid #f8717144;border-radius:12px;padding:14px;color:#fca5a5;font-size:14px}
+.qa-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;border-bottom:1px solid #ffffff12;background:#13131f;flex-shrink:0}
+.qa-chat{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.bubble{max-width:85%;border-radius:16px;padding:11px 15px;font-size:14px;line-height:1.55;white-space:pre-wrap}
+.bai{background:#1a1a2e;color:#f0f0f8;align-self:flex-start;border-bottom-left-radius:4px}
+.buser{background:linear-gradient(135deg,#22d3ee22,#4ade8022);border:1px solid #22d3ee33;color:#f0f0f8;align-self:flex-end;border-bottom-right-radius:4px}
+.bscore{background:#4ade8018;border:1px solid #4ade8033;color:#86efac;font-size:13px;font-style:italic;align-self:flex-start}
+.qa-input-area{border-top:1px solid #ffffff12;padding:11px 14px;background:#13131f;flex-shrink:0;display:flex;flex-direction:column;gap:8px}
+.qa-ta{background:#0d0d15;border:1px solid #ffffff12;border-radius:12px;padding:10px 13px;color:#f0f0f8;font-size:14px;resize:none;width:100%;font-family:'Outfit',sans-serif}
+.qa-btns{display:flex;gap:8px}
+.btn-mic{background:#1a1a2e;border:1px solid #ffffff12;border-radius:12px;padding:11px 15px;font-size:19px;flex-shrink:0;cursor:pointer;line-height:1}
+.btn-mic.on{background:#f8717122;border-color:#f87171}
 .btn-send{flex:1;background:linear-gradient(135deg,#22d3ee,#4ade80);color:#0a0a0f;border-radius:12px;padding:12px;font-size:15px;font-weight:700;border:none;cursor:pointer}
 .btn-send:disabled{opacity:.4}
-.summary-actions{padding:16px;border-top:1px solid #ffffff12;flex-shrink:0}
-
-/* ── HISTORY ── */
-.avg-card{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}
-.avg-label{color:#8888aa;font-size:13px}
-.avg-score{font-family:'Space Mono',monospace;font-size:28px;font-weight:700;color:#22d3ee}
-.chart-wrap{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px;overflow:hidden}
+.sg{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
+.sl{font-size:12px;color:#8888aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
+.chips-row{display:flex;gap:8px;flex-wrap:wrap}
 .history-list{display:flex;flex-direction:column;gap:8px}
-.history-row{background:#13131f;border:1px solid #ffffff12;border-radius:12px;padding:14px 16px;display:flex;justify-content:space-between;align-items:center;gap:12px}
-.history-topic{font-size:14px;font-weight:600;color:#f0f0f8}
-.history-meta{font-size:12px;color:#8888aa;margin-top:2px}
-.history-score{font-family:'Space Mono',monospace;font-size:22px;font-weight:700;flex-shrink:0}
-
-/* ── SETTINGS ── */
-.setting-group{background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:12px}
-.setting-label{font-size:13px;color:#8888aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px}
-.setting-row{display:flex;gap:8px;flex-wrap:wrap}
-.option-chip{background:#1a1a2e;border:1px solid #ffffff12;border-radius:20px;padding:8px 16px;font-size:14px;color:#f0f0f8;font-weight:500;cursor:pointer;transition:all .15s}
-.option-chip.active{background:#22d3ee22;border-color:#22d3ee;color:#22d3ee;font-weight:700}
-
-/* ── MISC ── */
-.loading-box{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;min-height:200px;flex:1}
-.spinner{width:32px;height:32px;border:3px solid #22d3ee33;border-top:3px solid #22d3ee;border-radius:50%;animation:spin .8s linear infinite}
-.loading-text{color:#8888aa;font-size:14px}
-.error-box{background:#f8717118;border:1px solid #f8717144;border-radius:12px;padding:14px;color:#fca5a5;font-size:14px}
-.empty-state{text-align:center;color:#8888aa;padding:40px 20px;font-size:15px}
+.history-row{background:#13131f;border:1px solid #ffffff12;border-radius:12px;padding:13px 16px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 </style>
 </head>
 <body>
 <div id="app"></div>
-
 <script>
-// ─── CONFIG ───────────────────────────────────────────────────────────────────
-const TOPICS = [
-  "Cycling","Trading & Investment","Central Banking","Commodities",
-  "Geopolitics","Psychology in Sport","Energy","Technology & AI",
-  "Sport & Fitness","Travel","Business & Finance","Health & Psychology"
-];
-const LEVELS = ["A2","B1","B2","C1","C2"];
-const STORAGE_KEY = "fakelingo_v1";
-// NOTE: User should paste their API key here
-const API_KEY = "YOUR_ANTHROPIC_API_KEY";
+var WORKER = "https://throbbing-wildflower-52c1.tomas-kutin.workers.dev/";
+var TOPICS = ["Cycling","Trading & Investment","Central Banking","Commodities","Geopolitics","Psychology in Sport","Energy","Technology & AI","Sport & Fitness","Travel","Business & Finance","Health & Psychology"];
+var LEVELS = ["A2","B1","B2","C1","C2"];
+var SK = "fakelingo_v4";
 
-// ─── STATE ────────────────────────────────────────────────────────────────────
-let state = {
-  view: "home",           // home | topics | articles | lesson-read | lesson-qa | history | settings
-  topic: null,
-  article: null,
-  articles: null,
-  fullText: null,
-  qaMessages: [],         // [{role, content, isScore}]
-  qaHistory: [],          // for Claude API
-  qCount: 0,
-  maxQ: 5,
-  scores: [],
-  finalScore: null,
-  currentQ: null,
-  qStartTime: null,
-  lessonStartTime: null,
-  isSpeaking: false,
-  isListening: false,
-  isLoading: false,
-  appData: loadAppData(),
-};
-
-function loadAppData() {
-  try {
-    const r = localStorage.getItem(STORAGE_KEY);
-    return r ? JSON.parse(r) : { history:[], settings:{ duration:10, level:"B2" } };
-  } catch { return { history:[], settings:{ duration:10, level:"B2" } }; }
+function loadData() {
+  try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2"}}; }
+  catch(e) { return {history:[],settings:{duration:10,level:"B2"}}; }
 }
-function saveAppData() {
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.appData)); } catch {}
-}
+function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
 
-// ─── CLAUDE API ───────────────────────────────────────────────────────────────
-async function callClaude(messages, systemPrompt) {
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", "x-api-key": API_KEY, "anthropic-version": "2023-06-01" },
-    body: JSON.stringify({ model:"claude-sonnet-4-20250514", max_tokens:1000, system:systemPrompt, messages })
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.content?.[0]?.text || "";
-}
+var D = loadData();
+var V = "home";
+var topic = null, article = null, fullText = null, articles = null;
+var qaMessages = [], qaHistory = [], currentQ = null;
+var qCount = 0, scores = [], finalScore = null;
+var qStart = null, lessonStart = null, maxQ = 5;
+var speaking = false, listening = false, loading = false, rec = null;
 
-// ─── SPEECH ───────────────────────────────────────────────────────────────────
-let recognition = null;
-
-function speak(text, onEnd) {
-  window.speechSynthesis.cancel();
-  const utt = new SpeechSynthesisUtterance(text);
-  utt.lang = "en-US"; utt.rate = 0.92; utt.pitch = 1;
-  const voices = window.speechSynthesis.getVoices();
-  const v = voices.find(v => v.lang==="en-US" && v.name.includes("Google")) || voices.find(v => v.lang==="en-US");
-  if (v) utt.voice = v;
-  utt.onend = () => { state.isSpeaking = false; if(onEnd) onEnd(); render(); };
-  utt.onerror = () => { state.isSpeaking = false; render(); };
-  window.speechSynthesis.speak(utt);
-  state.isSpeaking = true;
-  render();
-}
-
-function stopSpeaking() { window.speechSynthesis.cancel(); state.isSpeaking = false; }
-
-function startListening() {
-  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR) { alert("Speech recognition requires Chrome on Android."); return; }
-  recognition = new SR();
-  recognition.lang = "en-US"; recognition.interimResults = false; recognition.maxAlternatives = 1;
-  recognition.onresult = e => {
-    const t = e.results[0][0].transcript;
-    document.getElementById("qa-input").value = t;
-    state.isListening = false; render();
-  };
-  recognition.onerror = recognition.onend = () => { state.isListening = false; render(); };
-  recognition.start();
-  state.isListening = true; render();
-}
-
-function stopListening() { recognition?.stop(); state.isListening = false; render(); }
-
-// ─── HELPERS ─────────────────────────────────────────────────────────────────
-function calcStreak(history) {
-  if (!history.length) return 0;
-  let streak = 0;
-  const today = new Date(); today.setHours(0,0,0,0);
-  for (let i = history.length-1; i >= 0; i--) {
-    const d = new Date(history[i].date); d.setHours(0,0,0,0);
-    const diff = Math.round((today-d)/86400000) - streak;
-    if (diff <= 1) streak++;
+function calcStreak(h) {
+  if (!h.length) return 0;
+  var s = 0, t = new Date(); t.setHours(0,0,0,0);
+  for (var i = h.length-1; i >= 0; i--) {
+    var d = new Date(h[i].date); d.setHours(0,0,0,0);
+    if (Math.round((t-d)/86400000) - s <= 1) s++;
     else break;
   }
-  return streak;
+  return s;
+}
+function scoreColor(s) { return s >= 80 ? "#4ade80" : s >= 60 ? "#facc15" : "#f87171"; }
+
+async function claude(messages, system) {
+  var r = await fetch(WORKER, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1000, system:system, messages:messages})
+  });
+  var d = await r.json();
+  if (d.error) throw new Error(d.error.message);
+  return d.content[0].text;
 }
 
-function scoreColor(s) { return s>=80?"#4ade80":s>=60?"#facc15":"#f87171"; }
-
-function formatDate(iso) {
-  return new Date(iso).toLocaleDateString("cs-CZ", { day:"numeric", month:"numeric", year:"numeric" });
-}
-
-// ─── ASYNC ACTIONS ────────────────────────────────────────────────────────────
-async function fetchArticles(topic) {
-  state.isLoading = true; state.articles = null; render();
-  try {
-    const text = await callClaude(
-      [{ role:"user", content:`Topic: ${topic}, Level: ${state.appData.settings.level}` }],
-      `You are an English learning assistant. Generate 4 article summaries for an English learner at ${state.appData.settings.level} level about: "${topic}".
-Return ONLY valid JSON array, no markdown. Format:
-[{"title":"...","source":"...","summary":"2-3 sentences","difficulty":"${state.appData.settings.level}","readTime":"~X min read"},...]
-Make them realistic, interesting, varied in angle.`
-    );
-    const clean = text.replace(/```json|```/g,"").trim();
-    state.articles = JSON.parse(clean);
-  } catch(e) { state.articles = "error"; }
-  state.isLoading = false; render();
-}
-
-async function fetchFullArticle() {
-  state.isLoading = true; render();
-  try {
-    const text = await callClaude(
-      [{ role:"user", content:`Topic: ${state.topic}, Article: "${state.article.title}" by ${state.article.source}` }],
-      `Write a realistic, engaging article at ${state.appData.settings.level} English level about "${state.topic}" with title "${state.article.title}".
-200-300 words, natural journalistic style. Return ONLY the article body text, no title, no markdown.`
-    );
-    state.fullText = text;
-  } catch { state.fullText = "Error loading article. Please go back and try again."; }
-  state.isLoading = false; render();
-}
-
-async function fetchFirstQuestion() {
-  state.isLoading = true; render();
-  try {
-    const q = await callClaude(
-      [{ role:"user", content:`Article text:\n${state.fullText}\n\nAsk me the first comprehension or opinion question about this article.` }],
-      `You are an English conversation teacher. Ask ONE clear question about the article on "${state.topic}" at ${state.appData.settings.level} level. Return ONLY the question text.`
-    );
-    state.currentQ = q;
-    state.qaMessages = [{ role:"ai", content: q }];
-    state.qStartTime = Date.now();
-  } catch { state.qaMessages = [{ role:"ai", content:"Sorry, I had trouble generating a question. Please try again." }]; }
-  state.isLoading = false; render();
-  scrollChatToBottom();
-}
-
-async function submitAnswer(answer) {
-  if (!answer.trim()) return;
-  const elapsed = state.qStartTime ? (Date.now()-state.qStartTime)/1000 : 30;
-
-  state.qaMessages.push({ role:"user", content: answer });
-  state.isLoading = true; render(); scrollChatToBottom();
-
-  // Score
-  let scoreObj = { content:60, grammar:60, speed:60, vocabulary:60, feedback:"Good effort!" };
-  try {
-    const scoreText = await callClaude(
-      [{ role:"user", content:`Question: ${state.currentQ}\nStudent answer: ${answer}\nTime: ${elapsed.toFixed(0)}s` }],
-      `Score the student's English answer. Return ONLY JSON:
-{"content":N,"grammar":N,"speed":N,"vocabulary":N,"feedback":"one short encouraging sentence"}
-Speed scoring: <10s=100, 10-20s=80, 20-30s=60, >30s=40. All scores 0-100.`
-    );
-    const clean = scoreText.replace(/```json|```/g,"").trim();
-    scoreObj = JSON.parse(clean);
-  } catch {}
-
-  const avg = Math.round((scoreObj.content+scoreObj.grammar+scoreObj.speed+scoreObj.vocabulary)/4);
-  state.scores.push({ ...scoreObj, avg });
-  state.qCount++;
-
-  state.qaMessages.push({ role:"score", content:`${scoreObj.feedback}  •  Score: ${avg}/100` });
-
-  const newHistory = [
-    ...state.qaHistory,
-    { role:"user", content:`Article:\n${state.fullText}\n\nQ: ${state.currentQ}` },
-    { role:"assistant", content: state.currentQ },
-    { role:"user", content: answer }
-  ];
-  state.qaHistory = newHistory;
-
-  if (state.qCount >= state.maxQ) {
-    // End
-    const total = Math.round(state.scores.reduce((a,s)=>a+s.avg,0)/state.scores.length);
-    state.finalScore = total;
-    state.qaMessages.push({ role:"ai", content:`Great session! 🎉\nFinal score: ${total}/100\n\nKeep it up!` });
-    const durationMin = Math.round((Date.now()-state.lessonStartTime)/60000);
-    const result = { score:total, topic:state.topic, articleTitle:state.article.title, duration:durationMin, date:new Date().toISOString() };
-    state.appData.history.push(result);
-    saveAppData();
-    state.isLoading = false; render(); scrollChatToBottom();
-  } else {
-    // Next question
-    try {
-      const nextQ = await callClaude(
-        [...newHistory, { role:"user", content:"Ask me the next question about the article." }],
-        `You are an English conversation teacher. Ask ONE more question about the article on "${state.topic}". Return ONLY the question text.`
-      );
-      state.currentQ = nextQ;
-      state.qaMessages.push({ role:"ai", content: nextQ });
-      state.qStartTime = Date.now();
-    } catch { state.qaMessages.push({ role:"ai", content:"Could not load next question. Type 'next' to continue." }); }
-    state.isLoading = false; render(); scrollChatToBottom();
+function spk(text, cb) {
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  var u = new SpeechSynthesisUtterance(text);
+  u.lang = "en-US"; u.rate = 0.92;
+  var vs = window.speechSynthesis.getVoices();
+  var v = null;
+  for (var i = 0; i < vs.length; i++) {
+    if (vs[i].lang === "en-US" && vs[i].name.indexOf("Google") >= 0) { v = vs[i]; break; }
   }
+  if (!v) { for (var i = 0; i < vs.length; i++) { if (vs[i].lang === "en-US") { v = vs[i]; break; } } }
+  if (v) u.voice = v;
+  u.onend = function() { speaking = false; if (cb) cb(); render(); };
+  u.onerror = function() { speaking = false; render(); };
+  window.speechSynthesis.speak(u);
+  speaking = true; render();
 }
+function stopSpk() { if (window.speechSynthesis) window.speechSynthesis.cancel(); speaking = false; }
 
-function scrollChatToBottom() {
-  setTimeout(() => {
-    const chat = document.getElementById("qa-chat");
-    if (chat) chat.scrollTop = chat.scrollHeight;
-  }, 100);
-}
-
-// ─── RENDER ───────────────────────────────────────────────────────────────────
 function render() {
-  const app = document.getElementById("app");
-  switch(state.view) {
-    case "home":      app.innerHTML = renderHome(); break;
-    case "topics":    app.innerHTML = renderTopics(); break;
-    case "articles":  app.innerHTML = renderArticles(); break;
-    case "lesson-read": app.innerHTML = renderLessonRead(); break;
-    case "lesson-qa":   app.innerHTML = renderLessonQA(); break;
-    case "history":   app.innerHTML = renderHistory(); break;
-    case "settings":  app.innerHTML = renderSettings(); break;
-  }
-  bindEvents();
+  var app = document.getElementById("app");
+  if (V === "home") app.innerHTML = renderHome();
+  else if (V === "topics") app.innerHTML = renderTopics();
+  else if (V === "articles") app.innerHTML = renderArticles();
+  else if (V === "read") app.innerHTML = renderRead();
+  else if (V === "qa") app.innerHTML = renderQA();
+  else if (V === "history") app.innerHTML = renderHistory();
+  else if (V === "settings") app.innerHTML = renderSettings();
+  bind();
 }
 
-// ─── SCREENS ──────────────────────────────────────────────────────────────────
+function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;"); }
 
 function renderHome() {
-  const { history, settings } = state.appData;
-  const streak = calcStreak(history);
-  const lastScore = history.length ? history[history.length-1].score : null;
-  const today = new Date().toLocaleDateString("cs-CZ", { weekday:"long", day:"numeric", month:"long" });
-
-  return `<div class="screen">
-    <div class="home-header">
-      <div class="logo">🐒 Fakelingo</div>
-      <div class="home-date">${today}</div>
-    </div>
-
-    <div class="hero-card">
-      <div class="hero-emoji">🎧</div>
-      <div class="hero-title">Fakelingo</div>
-      <div class="hero-sub">Listen · Speak · Improve</div>
-      ${streak > 0 ? `<div class="streak-badge">🔥 ${streak} day streak</div>` : ""}
-    </div>
-
-    ${lastScore !== null ? `
-    <div class="last-score-card">
-      <span class="last-score-label">Last session score</span>
-      <span class="last-score-val">${lastScore}<span style="font-size:14px;opacity:.6">/100</span></span>
-    </div>` : ""}
-
-    <button class="btn-primary" id="btn-start">Start Today's Lesson</button>
-
-    <div class="nav-row">
-      <button class="btn-nav" id="btn-history">📈 History</button>
-      <button class="btn-nav" id="btn-settings">⚙️ Settings</button>
-    </div>
-  </div>`;
+  var streak = calcStreak(D.history);
+  var last = D.history.length ? D.history[D.history.length-1] : null;
+  var today = new Date().toLocaleDateString("cs-CZ", {weekday:"long",day:"numeric",month:"long"});
+  var html = '<div class="screen">';
+  html += '<div class="row"><div class="logo">\u{1F412} Fakelingo</div><div class="muted">' + today + '</div></div>';
+  html += '<div class="hero-card"><div style="font-size:48px;margin-bottom:6px">\u{1F3A7}</div>';
+  html += '<div class="hero-title">Fakelingo</div>';
+  html += '<div style="font-size:12px;color:#8888aa;margin-top:6px;letter-spacing:2px;text-transform:uppercase">Listen &middot; Speak &middot; Improve</div>';
+  if (streak > 0) html += '<div class="streak">\u{1F525} ' + streak + ' day streak</div>';
+  html += '</div>';
+  if (last) html += '<div class="card row"><span class="muted">Last session</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#4ade80">' + last.score + '<span style="font-size:13px;opacity:.6">/100</span></span></div>';
+  html += '<button class="btn-primary" id="bStart">Start Today\'s Lesson</button>';
+  html += '<div class="nav-row"><button class="btn-nav" id="bHistory">\u{1F4C8} History</button><button class="btn-nav" id="bSettings">\u2699\uFE0F Settings</button></div>';
+  html += '</div>';
+  return html;
 }
 
 function renderTopics() {
-  return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="screen-title">Choose Topic</div>
-    <div class="screen-sub">Level: <b>${state.appData.settings.level}</b> · ${state.appData.settings.duration} min</div>
-
-    <div class="topic-grid">
-      ${TOPICS.map(t => `<button class="topic-chip${state.topic===t?" active":""}" data-topic="${t}">${t}</button>`).join("")}
-    </div>
-
-    <div class="custom-row">
-      <input class="custom-input" id="custom-topic" placeholder="Or type your own topic..." value="${state.topic && !TOPICS.includes(state.topic) ? state.topic : ""}"/>
-      <button class="custom-btn" id="btn-custom-go">Go</button>
-    </div>
-  </div>`;
+  var chips = TOPICS.map(function(t) {
+    return '<button class="chip' + (topic === t ? ' active' : '') + '" data-t="' + esc(t) + '">' + esc(t) + '</button>';
+  }).join("");
+  return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>' +
+    '<div class="title">Choose Topic</div>' +
+    '<div class="muted">Level: <b>' + D.settings.level + '</b> &middot; ' + D.settings.duration + ' min</div>' +
+    '<div class="topic-grid">' + chips + '</div>' +
+    '<div class="custom-row"><input class="inp" id="customTopic" placeholder="Or type your own topic..."/><button class="btn-go" id="bCustomGo">Go</button></div>' +
+    '</div>';
 }
 
 function renderArticles() {
-  if (state.isLoading || !state.articles) return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="loading-box"><div class="spinner"></div><div class="loading-text">Finding articles on <b>${state.topic}</b>...</div></div>
-  </div>`;
-
-  if (state.articles === "error") return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="error-box">Failed to load articles. Check your API key and try again.</div>
-  </div>`;
-
-  return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="screen-title">Pick an Article</div>
-    <div class="screen-sub">${state.topic} · ${state.appData.settings.level}</div>
-
-    <div class="article-list">
-      ${state.articles.map((a,i) => `
-        <button class="article-card" data-article-idx="${i}">
-          <div class="article-card-title">${a.title}</div>
-          <div class="article-card-meta">${a.source} · ${a.readTime}</div>
-          <div class="article-card-summary">${a.summary}</div>
-          <div class="article-card-arrow">Start reading →</div>
-        </button>`).join("")}
-    </div>
-  </div>`;
-}
-
-function renderLessonRead() {
-  if (state.isLoading || !state.fullText) return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="loading-box"><div class="spinner"></div><div class="loading-text">Loading article...</div></div>
-  </div>`;
-
-  return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="article-header">
-      <div class="article-header-title">${state.article.title}</div>
-      <div class="article-header-meta">${state.article.source} · ${state.topic} · ${state.appData.settings.level}</div>
-    </div>
-    <div class="article-body">${state.fullText.replace(/\n/g,"<br/>")}</div>
-    <button class="btn-speak${state.isSpeaking?" active":""}" id="btn-speak">
-      ${state.isSpeaking ? "⏹ Stop Reading" : "▶ Read Aloud"}
-    </button>
-    <button class="btn-primary" id="btn-start-qa">I'm Ready — Start Questions →</button>
-  </div>`;
-}
-
-function renderLessonQA() {
-  const isDone = state.finalScore !== null;
-
-  const bubbles = state.qaMessages.map(m => {
-    if (m.role === "ai") return `<div class="bubble bubble-ai">${m.content}</div>`;
-    if (m.role === "user") return `<div class="bubble bubble-user">${m.content}</div>`;
-    if (m.role === "score") return `<div class="bubble bubble-score">${m.content}</div>`;
-    return "";
+  if (loading || !articles) {
+    return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>' +
+      '<div class="loading-box"><div class="spinner"></div><div class="muted">Finding articles on <b>' + esc(topic) + '</b>...</div></div></div>';
+  }
+  if (articles === "error") {
+    return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>' +
+      '<div class="error-box">Failed to load articles. Please try again.</div></div>';
+  }
+  var cards = articles.map(function(a, i) {
+    return '<button class="article-card" data-i="' + i + '">' +
+      '<div style="font-size:15px;font-weight:700;color:#f0f0f8;margin-bottom:4px;line-height:1.4;text-align:left">' + esc(a.title) + '</div>' +
+      '<div style="font-size:11px;color:#8888aa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;text-align:left">' + esc(a.source) + ' &middot; ' + esc(a.readTime) + '</div>' +
+      '<div style="font-size:13px;color:#aaaacc;line-height:1.5;text-align:left">' + esc(a.summary) + '</div>' +
+      '<div style="font-size:12px;color:#22d3ee;margin-top:8px;font-weight:600;text-align:left">Start reading \u2192</div></button>';
   }).join("");
+  return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>' +
+    '<div class="title">Pick an Article</div><div class="muted">' + esc(topic) + ' &middot; ' + D.settings.level + '</div>' +
+    '<div class="article-list">' + cards + '</div></div>';
+}
 
-  return `<div class="qa-screen">
-    <div class="qa-header">
-      <span class="qa-title">${state.topic}</span>
-      <span class="qa-progress">${state.qCount}/${state.maxQ} Q's</span>
-    </div>
+function renderRead() {
+  var hasText = fullText && !loading;
+  var html = '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>';
+  html += '<div class="card"><div style="font-size:15px;font-weight:700;color:#f0f0f8;line-height:1.4">' + esc(article ? article.title : '') + '</div>';
+  html += '<div style="font-size:11px;color:#8888aa;margin-top:4px;text-transform:uppercase;letter-spacing:.5px">' + esc(article ? article.source : '') + ' &middot; ' + esc(topic) + ' &middot; ' + D.settings.level + '</div></div>';
+  if (loading) {
+    html += '<div class="loading-box"><div class="spinner"></div><div class="muted">Loading article...</div></div>';
+  } else {
+    html += '<div style="font-size:15px;color:#ccccdd;line-height:1.8;background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:18px">' + esc(fullText || "").replace(/\n/g,"<br/>") + '</div>';
+  }
+  if (hasText) {
+    var speakStyle = speaking ? "border-color:#22d3ee;color:#22d3ee" : "";
+    var speakLabel = speaking ? "\u23F9 Stop Reading" : "\u25B6 Read Aloud";
+    html += '<button id="bSpeak" style="background:#1a1a2e;border:1px solid ' + (speaking ? '#22d3ee' : '#ffffff12') + ';border-radius:12px;padding:12px 16px;color:' + (speaking ? '#22d3ee' : '#f0f0f8') + ';font-size:14px;font-weight:600;width:100%;cursor:pointer">' + speakLabel + '</button>';
+    html += '<button class="btn-primary" id="bStartQA">I\'m Ready \u2014 Start Questions \u2192</button>';
+  }
+  html += '</div>';
+  return html;
+}
 
-    <div class="qa-chat" id="qa-chat">
-      ${bubbles}
-      ${state.isLoading ? `<div class="bubble bubble-ai"><span class="typing">● ● ●</span></div>` : ""}
-    </div>
-
-    ${!isDone ? `
-    <div class="qa-input-area">
-      <textarea class="qa-textarea" id="qa-input" rows="2" placeholder="Type your answer or use the mic..."></textarea>
-      <div class="qa-buttons">
-        <button class="btn-mic${state.isListening?" listening":""}" id="btn-mic">${state.isListening?"⏹":"🎤"}</button>
-        <button class="btn-send" id="btn-send" ${state.isLoading?"disabled":""}>Send →</button>
-      </div>
-    </div>` : `
-    <div class="summary-actions">
-      <button class="btn-primary" id="btn-home">Back to Home</button>
-    </div>`}
-  </div>`;
+function renderQA() {
+  var isDone = finalScore !== null;
+  var bubbles = qaMessages.map(function(m) {
+    var cls = m.r === "user" ? "buser" : m.r === "score" ? "bscore" : "bai";
+    return '<div class="bubble ' + cls + '">' + esc(m.c) + '</div>';
+  }).join("");
+  if (loading) bubbles += '<div class="bubble bai" style="opacity:.6">\u25CF \u25CF \u25CF</div>';
+  var html = '<div class="qa-wrap">';
+  html += '<div class="qa-header"><span style="font-size:15px;font-weight:700;color:#f0f0f8">' + esc(topic) + '</span><span style="font-size:12px;color:#8888aa;font-family:\'Space Mono\',monospace">' + qCount + '/' + maxQ + ' Q\'s</span></div>';
+  html += '<div class="qa-chat" id="qaChat">' + bubbles + '</div>';
+  if (!isDone) {
+    html += '<div class="qa-input-area"><textarea class="qa-ta" id="qaInput" rows="2" placeholder="Type your answer or tap the mic..."></textarea>';
+    html += '<div class="qa-btns"><button class="btn-mic' + (listening ? ' on' : '') + '" id="bMic">' + (listening ? '\u23F9' : '\uD83C\uDF99') + '</button>';
+    html += '<button class="btn-send" id="bSend"' + (loading ? ' disabled' : '') + '>Send \u2192</button></div></div>';
+  } else {
+    html += '<div style="padding:14px;border-top:1px solid #ffffff12;flex-shrink:0"><button class="btn-primary" id="bHome">Back to Home</button></div>';
+  }
+  html += '</div>';
+  return html;
 }
 
 function renderHistory() {
-  const { history } = state.appData;
-
-  if (!history.length) return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="screen-title">History</div>
-    <div class="empty-state">No sessions yet.<br/>Start your first lesson! 🎯</div>
-  </div>`;
-
-  const last30 = history.slice(-30);
-  const avg = Math.round(last30.reduce((a,h)=>a+h.score,0)/last30.length);
-
-  // SVG chart
-  const W=320, H=120, pad=20;
-  const scores = last30.map(h=>h.score);
-  const minS=Math.min(...scores), maxS=Math.max(...scores), range=maxS-minS||1;
-  const pts = scores.map((s,i)=>{
-    const x = pad+(i/Math.max(scores.length-1,1))*(W-2*pad);
-    const y = pad+(1-(s-minS)/range)*(H-2*pad);
-    return `${x},${y}`;
+  var h = D.history;
+  if (!h.length) return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">History</div><div style="text-align:center;color:#8888aa;padding:40px 20px">No sessions yet.<br/>Start your first lesson!</div></div>';
+  var last30 = h.slice(-30);
+  var avg = Math.round(last30.reduce(function(a,x){return a+x.score;},0) / last30.length);
+  var W=300,H=100,p=16;
+  var sc = last30.map(function(x){return x.score;});
+  var mn = Math.min.apply(null,sc), mx2 = Math.max.apply(null,sc), rng = mx2-mn||1;
+  var pts = sc.map(function(v,i){
+    var x = p+(i/Math.max(sc.length-1,1))*(W-2*p);
+    var y = p+(1-(v-mn)/rng)*(H-2*p);
+    return [x,y];
   });
-
-  const chart = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" style="width:100%;overflow:visible">
-    <defs>
-      <linearGradient id="g" x1="0" y1="0" x2="1" y2="0">
-        <stop offset="0%" stop-color="#4ade80"/>
-        <stop offset="100%" stop-color="#22d3ee"/>
-      </linearGradient>
-    </defs>
-    ${scores.length>1?`<polyline points="${pts.join(" ")}" fill="none" stroke="url(#g)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>`:""}
-    ${pts.map((p,i)=>{const[x,y]=p.split(",");return `<circle cx="${x}" cy="${y}" r="4" fill="#22d3ee"/>`;}).join("")}
-  </svg>`;
-
-  const rows = [...last30].reverse().map(h=>`
-    <div class="history-row">
-      <div>
-        <div class="history-topic">${h.topic}</div>
-        <div class="history-meta">${formatDate(h.date)} · ${h.duration} min · ${(h.articleTitle||"").slice(0,38)}${(h.articleTitle||"").length>38?"…":""}</div>
-      </div>
-      <div class="history-score" style="color:${scoreColor(h.score)}">${h.score}</div>
-    </div>`).join("");
-
-  return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="screen-title">Progress</div>
-
-    <div class="avg-card">
-      <span class="avg-label">30-day average</span>
-      <span class="avg-score">${avg}<span style="font-size:14px;opacity:.6">/100</span></span>
-    </div>
-
-    <div class="chart-wrap">${chart}</div>
-
-    <div class="history-list">${rows}</div>
-  </div>`;
+  var poly = pts.map(function(pt){return pt[0]+","+pt[1];}).join(" ");
+  var circles = pts.map(function(pt){return '<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="4" fill="#22d3ee"/>';}).join("");
+  var rows = last30.slice().reverse().map(function(x){
+    return '<div class="history-row"><div>' +
+      '<div style="font-size:14px;font-weight:600;color:#f0f0f8">' + esc(x.topic) + '</div>' +
+      '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + new Date(x.date).toLocaleDateString("cs-CZ") + ' &middot; ' + x.duration + ' min</div></div>' +
+      '<div style="font-family:\'Space Mono\',monospace;font-size:22px;font-weight:700;color:' + scoreColor(x.score) + ';flex-shrink:0">' + x.score + '</div></div>';
+  }).join("");
+  return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">Progress</div>' +
+    '<div class="card row"><span class="muted">30-day average</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#22d3ee">' + avg + '<span style="font-size:13px;opacity:.6">/100</span></span></div>' +
+    '<div style="background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px;overflow:hidden">' +
+    '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient></defs>' +
+    (pts.length > 1 ? '<polyline points="' + poly + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
+    circles + '</svg></div><div class="history-list">' + rows + '</div></div>';
 }
 
 function renderSettings() {
-  const { settings } = state.appData;
-  const durs = [5,7,10,15];
-
-  return `<div class="screen">
-    <button class="btn-back" id="btn-back">← Back</button>
-    <div class="screen-title">Settings</div>
-
-    <div class="setting-group">
-      <div class="setting-label">Lesson Duration</div>
-      <div class="setting-row">
-        ${durs.map(d=>`<button class="option-chip${settings.duration===d?" active":""}" data-dur="${d}">${d} min</button>`).join("")}
-      </div>
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">English Level</div>
-      <div class="setting-row">
-        ${LEVELS.map(l=>`<button class="option-chip${settings.level===l?" active":""}" data-lvl="${l}">${l}</button>`).join("")}
-      </div>
-    </div>
-
-    <div class="setting-group">
-      <div class="setting-label">Anthropic API Key</div>
-      <input class="custom-input" id="api-key-input" type="password" placeholder="sk-ant-..." value="${localStorage.getItem('fakelingo_apikey')||''}" style="width:100%"/>
-      <div class="muted" style="font-size:12px">Get your key at console.anthropic.com</div>
-    </div>
-
-    <button class="btn-primary" id="btn-save-settings">Save Settings</button>
-  </div>`;
+  var durs = [5,7,10,15].map(function(d){
+    return '<button class="chip' + (D.settings.duration === d ? ' active' : '') + '" data-dur="' + d + '">' + d + ' min</button>';
+  }).join("");
+  var lvls = LEVELS.map(function(l){
+    return '<button class="chip' + (D.settings.level === l ? ' active' : '') + '" data-lvl="' + l + '">' + l + '</button>';
+  }).join("");
+  return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">Settings</div>' +
+    '<div class="sg"><div class="sl">Lesson Duration</div><div class="chips-row">' + durs + '</div></div>' +
+    '<div class="sg"><div class="sl">English Level</div><div class="chips-row">' + lvls + '</div></div>' +
+    '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
 }
 
-// ─── EVENTS ───────────────────────────────────────────────────────────────────
-function bindEvents() {
-  // HOME
-  on("btn-start", () => { state.view="topics"; render(); });
-  on("btn-history", () => { state.view="history"; render(); });
-  on("btn-settings", () => { state.view="settings"; render(); });
-
-  // BACK
-  on("btn-back", () => {
-    stopSpeaking();
-    if (state.view==="topics") state.view="home";
-    else if (state.view==="articles") state.view="topics";
-    else if (state.view==="lesson-read") state.view="articles";
-    else if (state.view==="lesson-qa") { state.view="lesson-read"; state.qaMessages=[]; state.qCount=0; state.scores=[]; state.finalScore=null; }
-    else state.view="home";
+function bind() {
+  on("bStart", function(){ V="topics"; render(); });
+  on("bHistory", function(){ V="history"; render(); });
+  on("bSettings", function(){ V="settings"; render(); });
+  on("bBack", function(){
+    stopSpk();
+    if (V==="topics") V="home";
+    else if (V==="articles") V="topics";
+    else if (V==="read") V="articles";
+    else if (V==="qa") { V="read"; qaMessages=[]; qCount=0; scores=[]; finalScore=null; }
+    else V="home";
     render();
   });
-
-  // TOPICS
-  document.querySelectorAll(".topic-chip").forEach(btn => {
-    btn.onclick = () => {
-      state.topic = btn.dataset.topic;
-      state.articles = null;
-      state.view = "articles";
-      render();
-      fetchArticles(state.topic);
-    };
+  var tchips = document.querySelectorAll("[data-t]");
+  for (var i=0;i<tchips.length;i++) {
+    (function(b){ b.onclick = function(){ topic=b.dataset.t; articles=null; V="articles"; render(); fetchArticles(); }; })(tchips[i]);
+  }
+  on("bCustomGo", function(){
+    var v = document.getElementById("customTopic");
+    if (v && v.value.trim()) { topic=v.value.trim(); articles=null; V="articles"; render(); fetchArticles(); }
   });
-  on("btn-custom-go", () => {
-    const val = document.getElementById("custom-topic")?.value?.trim();
-    if (!val) return;
-    state.topic = val;
-    state.articles = null;
-    state.view = "articles";
-    render();
-    fetchArticles(state.topic);
+  var acards = document.querySelectorAll("[data-i]");
+  for (var i=0;i<acards.length;i++) {
+    (function(b){ b.onclick = function(){ article=articles[parseInt(b.dataset.i)]; fullText=null; V="read"; render(); fetchArticle(); }; })(acards[i]);
+  }
+  on("bSpeak", function(){ if(speaking){stopSpk();render();}else spk(fullText); });
+  on("bStartQA", function(){
+    stopSpk(); V="qa";
+    qaMessages=[]; qaHistory=[]; qCount=0; scores=[]; finalScore=null;
+    maxQ=Math.max(3,Math.floor(D.settings.duration*0.7));
+    lessonStart=Date.now(); render(); fetchFirstQ();
   });
-
-  // ARTICLES
-  document.querySelectorAll(".article-card").forEach(btn => {
-    btn.onclick = () => {
-      state.article = state.articles[parseInt(btn.dataset.articleIdx)];
-      state.fullText = null;
-      state.view = "lesson-read";
-      render();
-      fetchFullArticle();
-    };
+  on("bMic", function(){ if(listening) stopListen(); else startListen(); });
+  on("bSend", function(){
+    var inp=document.getElementById("qaInput");
+    if(inp && inp.value.trim()) submitAnswer(inp.value.trim());
   });
-
-  // LESSON READ
-  on("btn-speak", () => {
-    if (state.isSpeaking) { stopSpeaking(); render(); }
-    else speak(state.fullText);
-  });
-  on("btn-start-qa", () => {
-    stopSpeaking();
-    state.view = "lesson-qa";
-    state.qaMessages = [];
-    state.qaHistory = [];
-    state.qCount = 0;
-    state.scores = [];
-    state.finalScore = null;
-    state.lessonStartTime = Date.now();
-    state.maxQ = Math.max(3, Math.floor(state.appData.settings.duration * 0.7));
-    render();
-    fetchFirstQuestion();
-  });
-
-  // QA
-  on("btn-mic", () => { state.isListening ? stopListening() : startListening(); });
-  on("btn-send", () => {
-    const inp = document.getElementById("qa-input");
-    if (inp?.value?.trim()) submitAnswer(inp.value.trim());
-  });
-  on("btn-home", () => {
-    state.view = "home"; state.topic=null; state.article=null; state.fullText=null;
-    state.qaMessages=[]; state.qCount=0; state.scores=[]; state.finalScore=null;
-    render();
-  });
-
-  // SETTINGS
-  document.querySelectorAll("[data-dur]").forEach(btn => {
-    btn.onclick = () => { state.appData.settings.duration = parseInt(btn.dataset.dur); saveAppData(); render(); };
-  });
-  document.querySelectorAll("[data-lvl]").forEach(btn => {
-    btn.onclick = () => { state.appData.settings.level = btn.dataset.lvl; saveAppData(); render(); };
-  });
-  on("btn-save-settings", () => {
-    const keyInput = document.getElementById("api-key-input");
-    if (keyInput?.value?.trim()) {
-      localStorage.setItem("fakelingo_apikey", keyInput.value.trim());
-      window.FAKELINGO_API_KEY = keyInput.value.trim();
-    }
-    saveAppData();
-    state.view = "home";
-    render();
-  });
-
-  // Scroll QA to bottom on render
-  const chat = document.getElementById("qa-chat");
+  on("bHome", function(){ V="home"; topic=null; article=null; fullText=null; qaMessages=[]; qCount=0; scores=[]; finalScore=null; render(); });
+  var dchips = document.querySelectorAll("[data-dur]");
+  for (var i=0;i<dchips.length;i++) {
+    (function(b){ b.onclick = function(){ D.settings.duration=parseInt(b.dataset.dur); save(); render(); }; })(dchips[i]);
+  }
+  var lchips = document.querySelectorAll("[data-lvl]");
+  for (var i=0;i<lchips.length;i++) {
+    (function(b){ b.onclick = function(){ D.settings.level=b.dataset.lvl; save(); render(); }; })(lchips[i]);
+  }
+  on("bSaveSettings", function(){ save(); V="home"; render(); });
+  var chat = document.getElementById("qaChat");
   if (chat) chat.scrollTop = chat.scrollHeight;
 }
 
-function on(id, fn) {
-  const el = document.getElementById(id);
-  if (el) el.onclick = fn;
+function on(id, fn) { var e=document.getElementById(id); if(e) e.onclick=fn; }
+
+async function fetchArticles() {
+  loading=true; render();
+  try {
+    var t = await claude(
+      [{role:"user",content:"Topic: "+topic+", Level: "+D.settings.level}],
+      "Generate 4 article summaries for English learner at "+D.settings.level+" level about \""+topic+"\". Return ONLY valid JSON array, no markdown:\n[{\"title\":\"...\",\"source\":\"...\",\"summary\":\"2-3 sentences\",\"readTime\":\"~X min read\"},...]"
+    );
+    articles = JSON.parse(t.replace(/```json|```/g,"").trim());
+  } catch(e) { articles="error"; }
+  loading=false; render();
 }
 
-// ─── API KEY HANDLING ─────────────────────────────────────────────────────────
-// Override callClaude to use stored key
-const _callClaude = callClaude;
-window.callClaude = async function(messages, systemPrompt) {
-  const key = localStorage.getItem("fakelingo_apikey") || window.FAKELINGO_API_KEY || "";
-  if (!key) {
-    alert("Please set your Anthropic API key in Settings first!");
-    throw new Error("No API key");
+async function fetchArticle() {
+  loading=true; render();
+  try {
+    fullText = await claude(
+      [{role:"user",content:"Topic: "+topic+", title: \""+article.title+"\""}],
+      "Write a realistic article at "+D.settings.level+" English level about \""+topic+"\" titled \""+article.title+"\". 200-300 words, natural journalistic style. Return ONLY the body text."
+    );
+  } catch(e) { fullText="Error loading article. Please go back and try again."; }
+  loading=false; render();
+}
+
+async function fetchFirstQ() {
+  loading=true; render();
+  try {
+    var q = await claude(
+      [{role:"user",content:"Article:\n"+fullText+"\n\nAsk me the first question."}],
+      "You are an English conversation teacher. Ask ONE clear comprehension or opinion question about the article on \""+topic+"\" at "+D.settings.level+" level. Return ONLY the question text."
+    );
+    currentQ=q; qaMessages=[{r:"ai",c:q}]; qStart=Date.now();
+  } catch(e) { qaMessages=[{r:"ai",c:"Could not load question. Please go back and try again."}]; }
+  loading=false; render(); scrollChat();
+}
+
+async function submitAnswer(ans) {
+  var elapsed = qStart ? (Date.now()-qStart)/1000 : 30;
+  var inp = document.getElementById("qaInput");
+  if (inp) inp.value="";
+  qaMessages.push({r:"user",c:ans}); loading=true; render(); scrollChat();
+  var sc = {content:60,grammar:60,speed:60,vocabulary:60,feedback:"Good effort!"};
+  try {
+    var t = await claude(
+      [{role:"user",content:"Q: "+currentQ+"\nAnswer: "+ans+"\nTime: "+Math.round(elapsed)+"s"}],
+      "Score the English answer. Return ONLY JSON (no markdown):\n{\"content\":N,\"grammar\":N,\"speed\":N,\"vocabulary\":N,\"feedback\":\"one short encouraging sentence\"}\nSpeed: under 10s=100, 10-20s=80, 20-30s=60, over 30s=40. All 0-100."
+    );
+    sc = JSON.parse(t.replace(/```json|```/g,"").trim());
+  } catch(e) {}
+  var avg = Math.round((sc.content+sc.grammar+sc.speed+sc.vocabulary)/4);
+  scores.push(avg); qCount++;
+  qaMessages.push({r:"score",c:sc.feedback+"  \u2022  Score: "+avg+"/100"});
+  qaHistory.push({role:"user",content:"Article:\n"+fullText+"\n\nQ: "+currentQ});
+  qaHistory.push({role:"assistant",content:currentQ});
+  qaHistory.push({role:"user",content:ans});
+  if (qCount >= maxQ) {
+    var total = Math.round(scores.reduce(function(a,s){return a+s;},0)/scores.length);
+    finalScore=total;
+    qaMessages.push({r:"ai",c:"Great session! \uD83C\uDF89\nFinal score: "+total+"/100\n\nKeep it up!"});
+    var dur = Math.round((Date.now()-lessonStart)/60000);
+    D.history.push({score:total,topic:topic,articleTitle:article.title,duration:dur,date:new Date().toISOString()});
+    save(); loading=false; render(); scrollChat();
+  } else {
+    try {
+      var msgs = qaHistory.concat([{role:"user",content:"Ask me the next question about the article."}]);
+      var nextQ = await claude(msgs,"You are an English conversation teacher. Ask ONE more question about the article on \""+topic+"\". Return ONLY the question text.");
+      currentQ=nextQ; qaMessages.push({r:"ai",c:nextQ}); qStart=Date.now();
+    } catch(e) { qaMessages.push({r:"ai",c:"Could not load next question."}); }
+    loading=false; render(); scrollChat();
   }
-  const res = await fetch("https://api.anthropic.com/v1/messages", {
-    method:"POST",
-    headers:{"Content-Type":"application/json","x-api-key":key,"anthropic-version":"2023-06-01"},
-    body:JSON.stringify({model:"claude-sonnet-4-20250514",max_tokens:1000,system:systemPrompt,messages})
-  });
-  const data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.content?.[0]?.text || "";
-};
-
-// Patch all callClaude calls to use window.callClaude
-async function callClaude(messages, systemPrompt) {
-  return window.callClaude(messages, systemPrompt);
 }
 
-// ─── INIT ─────────────────────────────────────────────────────────────────────
-if (window.speechSynthesis) {
-  window.speechSynthesis.onvoiceschanged = () => {};
+function scrollChat() { setTimeout(function(){ var c=document.getElementById("qaChat"); if(c) c.scrollTop=c.scrollHeight; },80); }
+
+function startListen() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) { alert("Speech recognition requires Chrome on Android."); return; }
+  rec = new SR(); rec.lang="en-US"; rec.interimResults=false;
+  rec.onresult = function(e){ var inp=document.getElementById("qaInput"); if(inp) inp.value=e.results[0][0].transcript; listening=false; render(); };
+  rec.onerror = function(){ listening=false; render(); };
+  rec.onend = function(){ listening=false; render(); };
+  rec.start(); listening=true; render();
 }
+function stopListen() { if(rec) rec.stop(); listening=false; render(); }
+
 render();
 </script>
 </body>

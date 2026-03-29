@@ -454,30 +454,41 @@ async function submitAnswer(ans) {
 
 function scrollChat() { setTimeout(function(){ var c=document.getElementById("qaChat"); if(c) c.scrollTop=c.scrollHeight; },80); }
 
+var accumulated = "";
 function startListen() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert("Speech recognition requires Chrome on Android."); return; }
+  accumulated = "";
+  startRecSession();
+  listening = true; render();
+}
+function startRecSession() {
+  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !listening) return;
   try {
     rec = new SR();
     rec.lang = "en-US";
     rec.interimResults = true;
-    rec.continuous = true;
+    rec.continuous = false;
     rec.onresult = function(e) {
-      var t = "";
-      for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      var final = "", interim = "";
+      for (var i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
+      }
       var inp = document.getElementById("qaInput");
-      if (inp) inp.value = t;
-    };
-    rec.onerror = function(err) {
-      if (err.error === "no-speech") { try { rec.start(); } catch(e){} return; }
-      listening = false; render();
+      if (inp) inp.value = (accumulated + final + interim).trim();
     };
     rec.onend = function() {
-      if (listening) { try { rec.start(); } catch(e){ listening=false; render(); } }
+      var inp = document.getElementById("qaInput");
+      if (inp) accumulated = inp.value ? inp.value.trim() + " " : "";
+      if (listening) setTimeout(startRecSession, 50);
+    };
+    rec.onerror = function(err) {
+      if (listening) setTimeout(startRecSession, 100);
     };
     rec.start();
-    listening = true; render();
-  } catch(e) { listening = false; render(); }
+  } catch(e) { listening=false; render(); }
 }
 function stopListenAndSend() {
   listening = false;

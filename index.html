@@ -447,65 +447,37 @@ async function submitAnswer(ans) {
 
 function scrollChat() { setTimeout(function(){ var c=document.getElementById("qaChat"); if(c) c.scrollTop=c.scrollHeight; },80); }
 
-var lastTranscript = "";
-var keepListening = false;
-var sessionTranscript = "";
-
 function startListen() {
   var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR) { alert("Speech recognition requires Chrome on Android."); return; }
-  lastTranscript = "";
-  sessionTranscript = "";
-  keepListening = true;
-  listening = true;
-  render();
-  startRecSession();
+  try {
+    rec = new SR();
+    rec.lang = "en-US";
+    rec.interimResults = true;
+    rec.continuous = false;
+    rec.onresult = function(e) {
+      var t = "";
+      for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      var inp = document.getElementById("qaInput");
+      if (inp) inp.value = t;
+    };
+    rec.onerror = function() { listening = false; render(); };
+    rec.onend = function() { listening = false; render(); };
+    rec.start();
+    listening = true; render();
+  } catch(e) { listening = false; render(); }
 }
-
-function startRecSession() {
-  var SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-  if (!SR || !keepListening) return;
-  sessionTranscript = "";
-  rec = new SR();
-  rec.lang = "en-US";
-  rec.interimResults = true;
-  rec.continuous = false;
-  rec.onresult = function(e) {
-    var interim = "";
-    var final = "";
-    for (var i = 0; i < e.results.length; i++) {
-      if (e.results[i].isFinal) final += e.results[i][0].transcript;
-      else interim += e.results[i][0].transcript;
-    }
-    sessionTranscript = final || interim;
-    var inp = document.getElementById("qaInput");
-    if (inp) inp.value = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
-  };
-  rec.onend = function() {
-    if (sessionTranscript) lastTranscript = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
-    sessionTranscript = "";
-    if (keepListening) setTimeout(startRecSession, 80);
-  };
-  rec.onerror = function() {
-    if (keepListening) setTimeout(startRecSession, 80);
-  };
-  try { rec.start(); } catch(e) {}
-}
-
 function stopListenAndSend() {
-  keepListening = false;
   listening = false;
   try { if (rec) rec.stop(); } catch(e) {}
   setTimeout(function() {
-    var full = (lastTranscript ? lastTranscript + " " : "") + sessionTranscript;
-    full = full.trim();
-    lastTranscript = "";
-    sessionTranscript = "";
-    if (full) submitAnswer(full);
+    var inp = document.getElementById("qaInput");
+    var val = inp ? inp.value.trim() : "";
+    if (val) submitAnswer(val);
     else render();
-  }, 350);
+  }, 400);
 }
-function stopListen() { keepListening=false; try{if(rec) rec.stop();}catch(e){} listening=false; render(); }
+function stopListen() { try{if(rec) rec.stop();}catch(e){} listening=false; render(); }
 function startTimer() {
   stopTimer(); timerSeconds=0; qStart=Date.now();
   timerInterval=setInterval(function(){

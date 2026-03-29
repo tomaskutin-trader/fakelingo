@@ -243,12 +243,10 @@ function renderQA() {
     html += '<div class="qa-input-area">';
     if (timerStr) html += '<div class="timer' + timerCls + '">' + timerStr + '</div>';
     html += '<textarea class="qa-ta" id="qaInput" rows="2" placeholder="Type your answer..."></textarea>';
-    html += '<div class="qa-btns">';
-    html += '<button class="btn-mic' + (listening ? ' on' : '') + '" id="bMic" style="flex:1;padding:14px;font-size:14px;font-weight:700">' + (listening ? '\uD83D\uDFE5 Release to Send' : '\uD83C\uDF99 Hold to Speak') + '</button>';
-    html += '</div>';
+    html += '<button id="bMic" style="background:' + (listening ? '#f87171' : '#22d3ee') + ';color:#0a0a0f;border-radius:14px;padding:15px;font-size:15px;font-weight:700;width:100%;border:none;cursor:pointer">' + (listening ? '\u23F9 Stop & Send Answer' : '\uD83C\uDF99 Record Answer') + '</button>';
     html += '<div style="display:flex;gap:8px">';
-    html += '<button class="btn-send" id="bSend"' + (loading ? ' disabled' : '') + '>Send \u2192</button>';
-    html += '<button id="bRepeat" style="background:#1a1a2e;border:1px solid #ffffff22;border-radius:12px;padding:12px;font-size:13px;color:#8888aa;cursor:pointer;white-space:nowrap" ' + (loading ? 'disabled' : '') + '>\uD83D\uDD01 Repeat (-50%)</button>';
+    html += '<button class="btn-send" id="bSend"' + (loading ? ' disabled' : '') + ' style="flex:1">Send typed \u2192</button>';
+    html += '<button id="bRepeat" ' + (loading ? 'disabled' : '') + ' style="background:#1a1a2e;border:1px solid #ffffff22;border-radius:12px;padding:12px;font-size:13px;color:#8888aa;cursor:pointer;flex:1">\uD83D\uDD01 Repeat (-50%)</button>';
     html += '</div>';
     html += '</div>';
   } else {
@@ -333,11 +331,7 @@ function bind() {
     lessonStart=Date.now(); render(); fetchFirstQ();
   });
   on("bMic", function(){});
-  var micBtn = document.getElementById("bMic");
-  if (micBtn) {
-    micBtn.onmousedown = function(e){ e.preventDefault(); if(!listening) startListen(); };
-    micBtn.ontouchstart = function(e){ e.preventDefault(); if(!listening) startListen(); };
-  }
+  on("bMic", function(){ if(listening) stopListenAndSend(); else startListen(); });
   var qb = document.getElementById("qBubble");
   if (qb) {
     qb.onclick = function(){
@@ -467,30 +461,35 @@ function startListen() {
     rec = new SR();
     rec.lang = "en-US";
     rec.interimResults = true;
-    rec.continuous = false;
+    rec.continuous = true;
     rec.onresult = function(e) {
       var t = "";
       for (var i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
       var inp = document.getElementById("qaInput");
       if (inp) inp.value = t;
     };
-    rec.onerror = function() { listening = false; render(); };
-    rec.onend = function() { listening = false; render(); };
+    rec.onerror = function(err) {
+      if (err.error === "no-speech") { try { rec.start(); } catch(e){} return; }
+      listening = false; render();
+    };
+    rec.onend = function() {
+      if (listening) { try { rec.start(); } catch(e){ listening=false; render(); } }
+    };
     rec.start();
     listening = true; render();
   } catch(e) { listening = false; render(); }
 }
 function stopListenAndSend() {
   listening = false;
-  try { if (rec) rec.stop(); } catch(e) {}
+  try { if (rec) { rec.onend = null; rec.stop(); } } catch(e) {}
   setTimeout(function() {
     var inp = document.getElementById("qaInput");
     var val = inp ? inp.value.trim() : "";
     if (val) submitAnswer(val);
     else render();
-  }, 400);
+  }, 200);
 }
-function stopListen() { try{if(rec) rec.stop();}catch(e){} listening=false; render(); }
+function stopListen() { listening=false; try{ if(rec){ rec.onend=null; rec.stop(); } }catch(e){} render(); }
 function startTimer() {
   stopTimer(); timerSeconds=0; qStart=Date.now();
   timerInterval=setInterval(function(){
@@ -503,9 +502,6 @@ function startTimer() {
   },1000);
 }
 function stopTimer() { if(timerInterval){clearInterval(timerInterval);timerInterval=null;} timerSeconds=0; }
-
-document.addEventListener("mouseup", function(){ if(listening) stopListenAndSend(); });
-document.addEventListener("touchend", function(e){ if(listening){ e.preventDefault(); stopListenAndSend(); } }, {passive:false});
 
 render();
 </script>

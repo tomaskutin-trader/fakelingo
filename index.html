@@ -511,14 +511,11 @@ async function fetchArticle() {
     var words = wordMap[String(D.settings.duration)] || "200-300";
     var prompt, sys;
     if (article.url && article.url.length > 10) {
-      // Real article - ask Claude to write learning-friendly version based on title+summary
-      prompt = "Article title: "+article.title+"
-Source: "+article.source+"
-Summary: "+(article.summary||"")+"";
-      sys = "You are an English learning content creator. Based on this real article's title and summary, write an engaging "+words+"-word article at "+D.settings.level+" level that teaches the same content. Use natural journalistic style. Return ONLY the body text.";
+      prompt = "Article title: "+article.title+" | Source: "+article.source+" | Summary: "+(article.summary||"");
+      sys = "You are an English learning content creator. Based on this real article title and summary, write an engaging "+words+"-word article at "+D.settings.level+" level that teaches the same content. Use natural journalistic style. Return ONLY the body text.";
     } else {
-      prompt = "Topic: "+topic+", title: ""+article.title+""";
-      sys = "Write a realistic article at "+D.settings.level+" English level about ""+topic+"" titled ""+article.title+"". "+words+" words, natural journalistic style. Return ONLY the body text.";
+      prompt = "Topic: "+topic+", title: "+article.title;
+      sys = "Write a realistic article at "+D.settings.level+" English level about '"+topic+"' titled '"+article.title+"'. "+words+" words, natural journalistic style. Return ONLY the body text.";
     }
     fullText = await claude([{role:"user",content:prompt}], sys);
   } catch(e) { fullText="Error loading article. Please go back and try again."; }

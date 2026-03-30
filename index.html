@@ -626,22 +626,28 @@ function startRecSession() {
   try {
     rec = new SR();
     rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.continuous = false;
+    rec.interimResults = true;
+    rec.continuous = true;
     rec.onresult = function(e) {
+      var final = "", interim = "";
       for (var i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          accumulated += (accumulated ? " " : "") + e.results[i][0].transcript;
-        }
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
       }
+      if (final) accumulated = (accumulated + final).trim();
       var inp = document.getElementById("qaInput");
-      if (inp) inp.value = accumulated;
+      if (inp) inp.value = interim ? accumulated + " " + interim : accumulated;
     };
     rec.onend = function() {
-      if (listening) setTimeout(startRecSession, 100);
+      if (listening) {
+        setTimeout(function(){
+          if (listening) startRecSession();
+        }, 300);
+      }
     };
-    rec.onerror = function() {
-      if (listening) setTimeout(startRecSession, 150);
+    rec.onerror = function(e) {
+      if (e.error === "no-speech" && listening) setTimeout(startRecSession, 300);
+      else if (listening) setTimeout(startRecSession, 500);
     };
     rec.start();
   } catch(e) { listening = false; render(); }

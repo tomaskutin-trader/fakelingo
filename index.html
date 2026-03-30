@@ -561,26 +561,28 @@ async function submitAnswer(ans) {
   var inp = document.getElementById("qaInput");
   if (inp) inp.value="";
   stopTimer(); qaMessages.push({r:"user",c:ans}); loading=true; render(); scrollChat();
-  var sc = {content:60,grammar:60,speed:60,vocabulary:60,feedback:"Good effort!"};
+  var sc = {content:60,grammar:60,speed:60,vocabulary:60,feedback:"Good effort!",ideal:""};
   try {
     var t = await claude(
-      [{role:"user",content:"Q: "+currentQ+"\nAnswer: "+ans+"\nTime: "+Math.round(elapsed)+"s"}],
-      "Score the English answer. Return ONLY JSON (no markdown):\n{\"content\":N,\"grammar\":N,\"speed\":N,\"vocabulary\":N,\"feedback\":\"one short encouraging sentence\"}\nSpeed: under 10s=100, 10-20s=80, 20-30s=60, over 30s=40. All 0-100."
+      [{role:"user",content:"Q: "+currentQ+"\nStudent answer: "+ans+"\nTime: "+Math.round(elapsed)+"s\nArticle: "+fullText.slice(0,400)}],
+      "Score the English answer and write an ideal answer. Return ONLY JSON (no markdown):\n{\"content\":N,\"grammar\":N,\"speed\":N,\"vocabulary\":N,\"feedback\":\"one short encouraging sentence\",\"ideal\":\"ideal 1-2 sentence answer\"}\nSpeed: under 10s=100, 10-20s=80, 20-30s=60, over 30s=40. All 0-100."
     );
     sc = JSON.parse(t.replace(/```json|```/g,"").trim());
   } catch(e) {}
+  var isRepeat = repeatPenalty;
   var avg = Math.round((sc.content+sc.grammar+sc.speed+sc.vocabulary)/4);
-  if(repeatPenalty) avg = Math.round(avg/2);
+  if(isRepeat) avg = Math.round(avg/2);
   repeatPenalty = false;
   scores.push(avg); qCount++;
-  var penalty = repeatPenalty ? " (repeat -50%)" : "";
+  var penalty = isRepeat ? " (repeat -50%)" : "";
   var breakdown = sc.feedback+"\n\n"+
     "\uD83D\uDCDD Content: "+sc.content+"/100\n"+
     "\uD83D\uDCDA Grammar: "+sc.grammar+"/100\n"+
     "\uD83D\uDCAC Vocabulary: "+sc.vocabulary+"/100\n"+
     "\u26A1 Speed: "+sc.speed+"/100\n"+
     "\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"+
-    "\u2B50 Score: "+avg+"/100"+penalty;
+    "\u2B50 Score: "+avg+"/100"+penalty+
+    (sc.ideal ? "\n\n\uD83D\uDCA1 Ideal answer:\n"+sc.ideal : "");
   qaMessages.push({r:"score",c:breakdown});
   qaHistory.push({role:"user",content:"Article:\n"+fullText+"\n\nQ: "+currentQ});
   qaHistory.push({role:"assistant",content:currentQ});
@@ -626,22 +628,28 @@ function startRecSession() {
   try {
     rec = new SR();
     rec.lang = "en-US";
-    rec.interimResults = false;
-    rec.continuous = false;
+    rec.interimResults = true;
+    rec.continuous = true;
     rec.onresult = function(e) {
+      var final = "", interim = "";
       for (var i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) {
-          accumulated += (accumulated ? " " : "") + e.results[i][0].transcript;
-        }
+        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
+        else interim += e.results[i][0].transcript;
       }
+      if (final) accumulated = (accumulated + final).trim();
       var inp = document.getElementById("qaInput");
-      if (inp) inp.value = accumulated;
+      if (inp) inp.value = interim ? accumulated + " " + interim : accumulated;
     };
     rec.onend = function() {
-      if (listening) setTimeout(startRecSession, 100);
+      if (listening) {
+        setTimeout(function(){
+          if (listening) startRecSession();
+        }, 300);
+      }
     };
-    rec.onerror = function() {
-      if (listening) setTimeout(startRecSession, 150);
+    rec.onerror = function(e) {
+      if (e.error === "no-speech" && listening) setTimeout(startRecSession, 300);
+      else if (listening) setTimeout(startRecSession, 500);
     };
     rec.start();
   } catch(e) { listening = false; render(); }

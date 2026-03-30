@@ -474,39 +474,27 @@ async function fetchArticles() {
     var rawArticles = [];
 
     if (newsKey) {
-      // Fetch real articles from NewsAPI
       var q = encodeURIComponent(topic);
-      var url = "https://newsapi.org/v2/everything?q="+q+"&language=en&sortBy=publishedAt&pageSize=20&apiKey="+newsKey;
-      var resp = await fetch(url);
+      var newsUrl = "https://newsapi.org/v2/everything?q="+q+"&language=en&sortBy=publishedAt&pageSize=20&apiKey="+newsKey;
+      var resp = await fetch(newsUrl);
       var data = await resp.json();
       if (data.articles && data.articles.length) {
-        // Filter out already read articles (by URL)
         var filtered = data.articles.filter(function(a){
           return a.url && readUrls.indexOf(a.url) === -1 && a.description && a.title;
         });
-        // Take first 8 candidates, let Claude pick best 4
         var candidates = filtered.slice(0, 8).map(function(a){
-          return {title:a.title, source:a.source.name, description:a.description, url:a.url, publishedAt:a.publishedAt};
+          return {title:a.title, source:a.source.name, description:a.description, url:a.url};
         });
-        // Ask Claude to pick 4 most suitable for learning
-        var pickPrompt = "You are an English teacher. Pick the 4 most suitable articles for a "+D.settings.level+" level English learner studying '"+topic+"'. Return ONLY valid JSON array:
-"+
-          "[{"title":"...","source":"...","summary":"2-3 sentence description","readTime":"~X min read","url":"..."},...]";
-        var picked = await claude(
-          [{role:"user",content:"Candidates:
-"+JSON.stringify(candidates)}],
-          pickPrompt
-        );
+        var pickSys = "You are an English teacher. Pick 4 most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...]  where summary is 2-3 sentences and readTime is like '~3 min read'.";
+        var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
         rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
       }
     }
 
-    // Fallback to Claude-generated if no NewsAPI key or no results
     if (!rawArticles.length) {
       var t = await claude(
         [{role:"user",content:"Topic: "+topic+", Level: "+D.settings.level}],
-        "Generate 4 article summaries for English learner at "+D.settings.level+" level about ""+topic+"". Return ONLY valid JSON array, no markdown:
-[{"title":"...","source":"...","summary":"2-3 sentences","readTime":"~X min read","url":""},...]"
+        "Generate 4 article summaries for English learner at "+D.settings.level+" level about '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where url is empty string."
       );
       rawArticles = JSON.parse(t.replace(/```json|```/g,"").trim());
     }
@@ -523,7 +511,7 @@ async function fetchArticle() {
     var words = wordMap[String(D.settings.duration)] || "200-300";
     var prompt, sys;
     if (article.url && article.url.length > 10) {
-      // Real article — ask Claude to write learning-friendly version based on title+summary
+      // Real article - ask Claude to write learning-friendly version based on title+summary
       prompt = "Article title: "+article.title+"
 Source: "+article.source+"
 Summary: "+(article.summary||"")+"";

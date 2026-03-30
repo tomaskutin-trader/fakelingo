@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html>
 <head>
 <meta charset="UTF-8"/>
@@ -88,6 +87,28 @@ function loadData() {
   catch(e) { return {history:[],settings:{duration:10,level:"B2"}}; }
 }
 function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
+
+function getNewsKey() { try { return localStorage.getItem("fakelingo_newskey") || ""; } catch(e){ return ""; } }
+function saveNewsKey(k) { try { localStorage.setItem("fakelingo_newskey", k); } catch(e){} }
+
+// Track read articles: {date: "YYYY-MM-DD", urls: [...]}
+function getReadArticles() {
+  try {
+    var today = new Date().toISOString().slice(0,10);
+    var r = JSON.parse(localStorage.getItem("fakelingo_read") || "{}");
+    if (r.date !== today) return [];
+    return r.urls || [];
+  } catch(e) { return []; }
+}
+function markArticleRead(url) {
+  try {
+    var today = new Date().toISOString().slice(0,10);
+    var r = JSON.parse(localStorage.getItem("fakelingo_read") || "{}");
+    if (r.date !== today) r = {date:today, urls:[]};
+    if (url && r.urls.indexOf(url) === -1) r.urls.push(url);
+    localStorage.setItem("fakelingo_read", JSON.stringify(r));
+  } catch(e) {}
+}
 
 var D = loadData();
 var V = "home";
@@ -318,6 +339,11 @@ function renderSettings() {
     '<button id="bAddTopic" class="btn-go">Add</button>' +
     '</div>' +
     '</div>' +
+  '<div class="sg">' +
+    '<div class="sl">NewsAPI Key</div>' +
+    '<input class="inp" id="newsKeyInput" type="password" placeholder="Paste your NewsAPI key..." style="width:100%" value="' + (getNewsKey() ? "••••••••••••" : "") + '"/>' +
+    '<div style="font-size:12px;color:#8888aa">Get free key at newsapi.org &middot; enables real articles</div>' +
+    '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
 }
 
@@ -344,7 +370,7 @@ function bind() {
   });
   var acards = document.querySelectorAll("[data-i]");
   for (var i=0;i<acards.length;i++) {
-    (function(b){ b.onclick = function(){ article=articles[parseInt(b.dataset.i)]; fullText=null; V="read"; render(); fetchArticle(); }; })(acards[i]);
+    (function(b){ b.onclick = function(){ article=articles[parseInt(b.dataset.i)]; if(article.url) markArticleRead(article.url); fullText=null; V="read"; render(); fetchArticle(); }; })(acards[i]);
   }
   on("bSpeak", function(){ if(speaking){stopSpk();render();}else spk(fullText); });
   on("bStartQA", function(){
@@ -412,7 +438,11 @@ function bind() {
   for (var i=0;i<lchips.length;i++) {
     (function(b){ b.onclick = function(){ D.settings.level=b.dataset.lvl; save(); render(); }; })(lchips[i]);
   }
-  on("bSaveSettings", function(){ save(); V="home"; render(); });
+  on("bSaveSettings", function(){
+    var nk = document.getElementById("newsKeyInput");
+    if (nk && nk.value && nk.value !== "**saved**") saveNewsKey(nk.value.trim());
+    save(); V="home"; render();
+  });
   on("bAddTopic", function(){
     var inp = document.getElementById("newTopicInput");
     var val = inp ? inp.value.trim() : "";
@@ -439,26 +469,70 @@ function on(id, fn) { var e=document.getElementById(id); if(e) e.onclick=fn; }
 async function fetchArticles() {
   loading=true; render();
   try {
-    var t = await claude(
-      [{role:"user",content:"Topic: "+topic+", Level: "+D.settings.level}],
-      "Generate 4 article summaries for English learner at "+D.settings.level+" level about \""+topic+"\". Return ONLY valid JSON array, no markdown:\n[{\"title\":\"...\",\"source\":\"...\",\"summary\":\"2-3 sentences\",\"readTime\":\"~X min read\"},...]"
-    );
-    articles = JSON.parse(t.replace(/```json|```/g,"").trim());
-  } catch(e) { articles="error"; }
+    var newsKey = getNewsKey();
+    var readUrls = getReadArticles();
+    var rawArticles = [];
+
+    if (newsKey) {
+      // Fetch real articles from NewsAPI
+      var q = encodeURIComponent(topic);
+      var url = "https://newsapi.org/v2/everything?q="+q+"&language=en&sortBy=publishedAt&pageSize=20&apiKey="+newsKey;
+      var resp = await fetch(url);
+      var data = await resp.json();
+      if (data.articles && data.articles.length) {
+        // Filter out already read articles (by URL)
+        var filtered = data.articles.filter(function(a){
+          return a.url && readUrls.indexOf(a.url) === -1 && a.description && a.title;
+        });
+        // Take first 8 candidates, let Claude pick best 4
+        var candidates = filtered.slice(0, 8).map(function(a){
+          return {title:a.title, source:a.source.name, description:a.description, url:a.url, publishedAt:a.publishedAt};
+        });
+        // Ask Claude to pick 4 most suitable for learning
+        var pickPrompt = "You are an English teacher. Pick the 4 most suitable articles for a "+D.settings.level+" level English learner studying '"+topic+"'. Return ONLY valid JSON array:
+"+
+          "[{"title":"...","source":"...","summary":"2-3 sentence description","readTime":"~X min read","url":"..."},...]";
+        var picked = await claude(
+          [{role:"user",content:"Candidates:
+"+JSON.stringify(candidates)}],
+          pickPrompt
+        );
+        rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
+      }
+    }
+
+    // Fallback to Claude-generated if no NewsAPI key or no results
+    if (!rawArticles.length) {
+      var t = await claude(
+        [{role:"user",content:"Topic: "+topic+", Level: "+D.settings.level}],
+        "Generate 4 article summaries for English learner at "+D.settings.level+" level about ""+topic+"". Return ONLY valid JSON array, no markdown:
+[{"title":"...","source":"...","summary":"2-3 sentences","readTime":"~X min read","url":""},...]"
+      );
+      rawArticles = JSON.parse(t.replace(/```json|```/g,"").trim());
+    }
+
+    articles = rawArticles;
+  } catch(e) { console.error(e); articles="error"; }
   loading=false; render();
 }
 
 async function fetchArticle() {
   loading=true; render();
   try {
-    fullText = await claude(
-      [{role:"user",content:"Topic: "+topic+", title: \""+article.title+"\""}],
-      (function(){
     var wordMap = {"5":"100-150","7":"150-200","10":"200-300","15":"300-400"};
     var words = wordMap[String(D.settings.duration)] || "200-300";
-    return "Write a realistic article at "+D.settings.level+" English level about \""+topic+"\" titled \""+article.title+"\". "+words+" words, natural journalistic style. Return ONLY the body text.";
-  })()
-    );
+    var prompt, sys;
+    if (article.url && article.url.length > 10) {
+      // Real article — ask Claude to write learning-friendly version based on title+summary
+      prompt = "Article title: "+article.title+"
+Source: "+article.source+"
+Summary: "+(article.summary||"")+"";
+      sys = "You are an English learning content creator. Based on this real article's title and summary, write an engaging "+words+"-word article at "+D.settings.level+" level that teaches the same content. Use natural journalistic style. Return ONLY the body text.";
+    } else {
+      prompt = "Topic: "+topic+", title: ""+article.title+""";
+      sys = "Write a realistic article at "+D.settings.level+" English level about ""+topic+"" titled ""+article.title+"". "+words+" words, natural journalistic style. Return ONLY the body text.";
+    }
+    fullText = await claude([{role:"user",content:prompt}], sys);
   } catch(e) { fullText="Error loading article. Please go back and try again."; }
   loading=false; render();
 }

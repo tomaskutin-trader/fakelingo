@@ -221,7 +221,10 @@ function renderArticles() {
       '<div style="font-size:15px;font-weight:700;color:#f0f0f8;margin-bottom:4px;line-height:1.4;text-align:left">' + esc(a.title) + '</div>' +
       '<div style="font-size:11px;color:#8888aa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;text-align:left">' + esc(a.source) + ' &middot; ' + esc(a.readTime) + '</div>' +
       '<div style="font-size:13px;color:#aaaacc;line-height:1.5;text-align:left">' + esc(a.summary) + '</div>' +
-      '<div style="font-size:12px;color:#22d3ee;margin-top:8px;font-weight:600;text-align:left">Start reading \u2192</div></button>';
+      '<div style="font-size:12px;color:#22d3ee;margin-top:8px;font-weight:600;text-align:left;display:flex;justify-content:space-between;align-items:center">' +
+        'Start reading \u2192' +
+        '<span style="font-size:11px;padding:2px 8px;border-radius:20px;background:' + (a.url && a.url.length>10 ? '#22d3ee22' : '#8888aa22') + ';color:' + (a.url && a.url.length>10 ? '#22d3ee' : '#8888aa') + '">' + (a.url && a.url.length>10 ? '\uD83D\uDCE1 Live' : '\uD83E\uDD16 AI') + '</span>' +
+      '</div></button>';
   }).join("");
   return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>' +
     '<div class="title">Pick an Article</div><div class="muted">' + esc(topic) + ' &middot; ' + D.settings.level + '</div>' +

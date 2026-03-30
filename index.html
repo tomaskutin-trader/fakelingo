@@ -477,9 +477,11 @@ async function fetchArticles() {
     var rawArticles = [];
 
     if (newsKey) {
-      var q = encodeURIComponent(topic);
-      var newsUrl = "https://newsapi.org/v2/everything?q="+q+"&language=en&sortBy=publishedAt&pageSize=20&apiKey="+newsKey;
-      var resp = await fetch(newsUrl);
+      var resp = await fetch(WORKER, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({newsapi: true, q: topic, key: newsKey})
+      });
       var data = await resp.json();
       if (data.articles && data.articles.length) {
         var filtered = data.articles.filter(function(a){
@@ -488,9 +490,11 @@ async function fetchArticles() {
         var candidates = filtered.slice(0, 8).map(function(a){
           return {title:a.title, source:a.source.name, description:a.description, url:a.url};
         });
-        var pickSys = "You are an English teacher. Pick 4 most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...]  where summary is 2-3 sentences and readTime is like '~3 min read'.";
-        var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
-        rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
+        if (candidates.length) {
+          var pickSys = "You are an English teacher. Pick 4 most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'.";
+          var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
+          rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
+        }
       }
     }
 

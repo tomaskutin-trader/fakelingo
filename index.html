@@ -85,7 +85,7 @@ var LEVELS = ["A2","B1","B2","C1","C2"];
 var SK = "fakelingo_v4";
 
 function loadData() {
-  try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2"}}; }
+  try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2",articleCount:6}}; }
   catch(e) { return {history:[],settings:{duration:10,level:"B2"}}; }
 }
 function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
@@ -329,6 +329,11 @@ function renderSettings() {
   return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">Settings</div>' +
     '<div class="sg"><div class="sl">Lesson Duration</div><div class="chips-row">' + durs + '</div></div>' +
     '<div class="sg"><div class="sl">English Level</div><div class="chips-row">' + lvls + '</div></div>' +
+    '<div class="sg"><div class="sl">Articles to show</div>' +
+    '<div style="display:flex;align-items:center;gap:10px">' +
+    '<input class="inp" id="articleCountInput" type="number" min="2" max="20" value="' + (D.settings.articleCount||6) + '" style="width:80px;flex:none"/>' +
+    '<span class="muted">articles per topic (2-20)</span>' +
+    '</div></div>' +
     '<div class="sg">' +
     '<div class="sl">Topics</div>' +
     '<div id="topicsList" style="display:flex;flex-direction:column;gap:6px">' +
@@ -444,6 +449,8 @@ function bind() {
     (function(b){ b.onclick = function(){ D.settings.level=b.dataset.lvl; save(); render(); }; })(lchips[i]);
   }
   on("bSaveSettings", function(){
+    var ac = document.getElementById("articleCountInput");
+    if (ac) { var v = parseInt(ac.value); if (v >= 2 && v <= 20) D.settings.articleCount = v; }
     var nk = document.getElementById("newsKeyInput");
     if (nk && nk.value && nk.value !== "**saved**") saveNewsKey(nk.value.trim());
     save(); V="home"; render();
@@ -489,11 +496,12 @@ async function fetchArticles() {
         var filtered = data.articles.filter(function(a){
           return a.url && readUrls.indexOf(a.url) === -1 && a.description && a.title;
         });
-        var candidates = filtered.slice(0, 8).map(function(a){
+        var cnt = D.settings.articleCount || 6;
+        var candidates = filtered.slice(0, cnt*2).map(function(a){
           return {title:a.title, source:a.source.name, description:a.description, url:a.url};
         });
         if (candidates.length) {
-          var pickSys = "You are an English teacher. Pick 4 most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'.";
+          var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'.";
           var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
           rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
         }

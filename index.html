@@ -99,12 +99,11 @@ var LEVELS = ["A2","B1","B2","C1","C2"];
 var SK = "fakelingo_v4";
 
 // ── Auth ──────────────────────────────────────────────────────────────────────
-// Session is kept in memory only (clears on tab close)
-var APP_SESSION = null; // holds the verified secret after login
+// Session in sessionStorage — survives F5/reload, clears on tab/browser close
 
-function getSession() { return APP_SESSION; }
-function setSession(s) { APP_SESSION = s; }
-function clearSession() { APP_SESSION = null; }
+function getSession() { try { return sessionStorage.getItem("fl_session"); } catch(e) { return null; } }
+function setSession(s) { try { sessionStorage.setItem("fl_session", s); } catch(e) {} }
+function clearSession() { try { sessionStorage.removeItem("fl_session"); } catch(e) {} }
 
 // Verify credentials against the Worker (Worker checks env.APP_SECRET)
 async function verifyLogin(password) {
@@ -146,7 +145,7 @@ function markArticleRead(url) {
 }
 
 var D = loadData();
-var V = "login"; // start at login
+var V = getSession() ? "home" : "login";
 var topic = null, article = null, fullText = null, articles = null;
 var qaMessages = [], qaHistory = [], currentQ = null;
 var qCount = 0, scores = [], finalScore = null;

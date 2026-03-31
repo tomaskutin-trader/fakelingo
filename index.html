@@ -107,17 +107,13 @@ function setSession(s) { APP_SESSION = s; }
 function clearSession() { APP_SESSION = null; }
 
 // Verify credentials against the Worker (Worker checks env.APP_SECRET)
-async function verifyLogin(username, password) {
-  // We send username+password as a combined secret: "username:password"
-  // Worker just checks this string against APP_SECRET env var
-  var combined = username.trim() + ":" + password;
+async function verifyLogin(password) {
   var r = await fetch(WORKER, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({authCheck: true, appSecret: combined})
+    body: JSON.stringify({authCheck: true, appSecret: password.trim()})
   });
-  if (r.status === 401) return false;
-  if (r.status === 200) return combined;
+  if (r.status === 200) return password.trim();
   return false;
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -224,14 +220,11 @@ function renderLogin() {
     '<div style="font-size:52px">🐒</div>' +
     '<div class="login-card">' +
       '<div class="login-title">Fakelingo</div>' +
-      '<div class="login-sub">Sign in to continue</div>' +
-      '<div class="login-field"><div class="login-label">Username</div>' +
-        '<input class="login-inp" id="loginUser" type="text" placeholder="Enter username" autocomplete="username" autocapitalize="none"/>' +
-      '</div>' +
+      '<div class="login-sub">Enter password to continue</div>' +
       '<div class="login-field"><div class="login-label">Password</div>' +
         '<input class="login-inp" id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password"/>' +
       '</div>' +
-      '<div class="login-err" id="loginErr">Incorrect username or password.</div>' +
+      '<div class="login-err" id="loginErr">Incorrect password.</div>' +
       '<button class="btn-login" id="bLogin">Sign In →</button>' +
     '</div>' +
   '</div>';
@@ -422,23 +415,21 @@ function renderSettings() {
 function bind() {
   // ── Login ──
   on("bLogin", function(){
-    var u = document.getElementById("loginUser");
     var p = document.getElementById("loginPass");
     var err = document.getElementById("loginErr");
     var btn = document.getElementById("bLogin");
-    if (!u || !p) return;
-    if (!u.value.trim() || !p.value) {
-      if (err) { err.textContent = "Please enter username and password."; err.classList.add("show"); }
+    if (!p || !p.value.trim()) {
+      if (err) { err.textContent = "Please enter password."; err.classList.add("show"); }
       return;
     }
     if (btn) btn.disabled = true;
     if (err) err.classList.remove("show");
-    verifyLogin(u.value, p.value).then(function(result) {
+    verifyLogin(p.value).then(function(result) {
       if (result) {
         setSession(result);
         V = "home"; render();
       } else {
-        if (err) { err.textContent = "Incorrect username or password."; err.classList.add("show"); }
+        if (err) { err.textContent = "Incorrect password."; err.classList.add("show"); }
         if (btn) btn.disabled = false;
       }
     }).catch(function() {
@@ -447,11 +438,9 @@ function bind() {
     });
   });
 
-  // Enter key on login fields
-  ["loginUser","loginPass"].forEach(function(id){
-    var el = document.getElementById(id);
-    if (el) el.onkeydown = function(e){ if(e.key==="Enter") document.getElementById("bLogin") && document.getElementById("bLogin").click(); };
-  });
+  // Enter key on login field
+  var lp = document.getElementById("loginPass");
+  if (lp) lp.onkeydown = function(e){ if(e.key==="Enter") document.getElementById("bLogin") && document.getElementById("bLogin").click(); };
 
   on("bLogout", function(){ clearSession(); V="login"; render(); });
 
@@ -576,6 +565,17 @@ function bind() {
 
 function on(id, fn) { var e=document.getElementById(id); if(e) e.onclick=fn; }
 
+function safeParseJSON(str) {
+  // Strip markdown fences
+  str = str.replace(/```json|```/g, "").trim();
+  // Try direct parse first
+  try { return JSON.parse(str); } catch(e) {}
+  // Try to extract JSON array with regex
+  var m = str.match(/\[[\s\S]*\]/);
+  if (m) { try { return JSON.parse(m[0]); } catch(e) {} }
+  return null;
+}
+
 async function fetchArticles() {
   loading=true; render();
   try {
@@ -599,9 +599,9 @@ async function fetchArticles() {
           return {title:a.title, source:a.source.name, description:a.description, url:a.url};
         });
         if (candidates.length) {
-          var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'.";
+          var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'. Keep summaries SHORT (max 100 chars each).";
           var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
-          rawArticles = JSON.parse(picked.replace(/```json|```/g,"").trim());
+          rawArticles = safeParseJSON(picked) || [];
         }
       }
     }
@@ -609,12 +609,12 @@ async function fetchArticles() {
     if (!rawArticles.length) {
       var t = await claude(
         [{role:"user",content:"Topic: "+topic+", Level: "+D.settings.level}],
-        "Generate 4 article summaries for English learner at "+D.settings.level+" level about '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where url is empty string."
+        "Generate 4 article summaries for English learner at "+D.settings.level+" level about '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where url is empty string. Keep summaries SHORT (max 100 chars each)."
       );
-      rawArticles = JSON.parse(t.replace(/```json|```/g,"").trim());
+      rawArticles = safeParseJSON(t) || [];
     }
 
-    articles = rawArticles;
+    articles = rawArticles.length ? rawArticles : "error";
   } catch(e) { console.error(e); articles="error"; }
   loading=false; render();
 }

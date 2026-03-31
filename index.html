@@ -628,28 +628,22 @@ function startRecSession() {
   try {
     rec = new SR();
     rec.lang = "en-US";
-    rec.interimResults = true;
-    rec.continuous = true;
+    rec.interimResults = false;
+    rec.continuous = false;
     rec.onresult = function(e) {
-      var final = "", interim = "";
       for (var i = 0; i < e.results.length; i++) {
-        if (e.results[i].isFinal) final += e.results[i][0].transcript + " ";
-        else interim += e.results[i][0].transcript;
+        if (e.results[i].isFinal) {
+          accumulated += (accumulated ? " " : "") + e.results[i][0].transcript;
+        }
       }
-      if (final) accumulated = (accumulated + final).trim();
       var inp = document.getElementById("qaInput");
-      if (inp) inp.value = interim ? accumulated + " " + interim : accumulated;
+      if (inp) inp.value = accumulated;
     };
     rec.onend = function() {
-      if (listening) {
-        setTimeout(function(){
-          if (listening) startRecSession();
-        }, 300);
-      }
+      if (listening) setTimeout(startRecSession, 100);
     };
-    rec.onerror = function(e) {
-      if (e.error === "no-speech" && listening) setTimeout(startRecSession, 300);
-      else if (listening) setTimeout(startRecSession, 500);
+    rec.onerror = function() {
+      if (listening) setTimeout(startRecSession, 150);
     };
     rec.start();
   } catch(e) { listening = false; render(); }
@@ -658,13 +652,14 @@ function stopListenAndSend() {
   listening = false;
   try { if (rec) { rec.onend = null; rec.stop(); } } catch(e) {}
   setTimeout(function() {
-    var inp = document.getElementById("qaInput");
-    var val = inp ? inp.value.trim() : "";
+    var val = accumulated.trim();
+    accumulated = "";
     if (val) submitAnswer(val);
     else render();
   }, 200);
 }
 function stopListen() { listening=false; try{ if(rec){ rec.onend=null; rec.stop(); } }catch(e){} render(); }
+
 function startTimer() {
   stopTimer(); timerSeconds=0; qStart=Date.now();
   timerInterval=setInterval(function(){

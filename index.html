@@ -218,18 +218,18 @@ function esc(s) { return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").re
 function renderLogin() {
   return '<div class="login-wrap">' +
     '<div style="font-size:52px">🐒</div>' +
-    '<div class="login-card">' +
+    '<form class="login-card" id="loginForm" autocomplete="on" onsubmit="return false">' +
       '<div class="login-title">Fakelingo</div>' +
       '<div class="login-sub">Sign in to continue</div>' +
       '<div class="login-field"><div class="login-label">Username</div>' +
-        '<input class="login-inp" id="loginUser" type="text" placeholder="Enter username" autocomplete="username" autocapitalize="none"/>' +
+        '<input class="login-inp" id="loginUser" type="text" name="username" placeholder="Enter username" autocomplete="username" autocapitalize="none"/>' +
       '</div>' +
       '<div class="login-field"><div class="login-label">Password</div>' +
-        '<input class="login-inp" id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password"/>' +
+        '<input class="login-inp" id="loginPass" type="password" name="password" placeholder="Enter password" autocomplete="current-password"/>' +
       '</div>' +
       '<div class="login-err" id="loginErr">Incorrect username or password.</div>' +
-      '<button class="btn-login" id="bLogin">Sign In →</button>' +
-    '</div>' +
+      '<button class="btn-login" id="bLogin" type="submit">Sign In →</button>' +
+    '</form>' +
   '</div>';
 }
 // ─────────────────────────────────────────────────────────────────────────────

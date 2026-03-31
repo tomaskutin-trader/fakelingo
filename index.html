@@ -106,13 +106,14 @@ function setSession(s) { try { sessionStorage.setItem("fl_session", s); } catch(
 function clearSession() { try { sessionStorage.removeItem("fl_session"); } catch(e) {} }
 
 // Verify credentials against the Worker (Worker checks env.APP_SECRET)
-async function verifyLogin(password) {
+async function verifyLogin(username, password) {
+  var combined = username.trim() + ":" + password.trim();
   var r = await fetch(WORKER, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({authCheck: true, appSecret: password.trim()})
+    body: JSON.stringify({authCheck: true, appSecret: combined})
   });
-  if (r.status === 200) return password.trim();
+  if (r.status === 200) return combined;
   return false;
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -219,11 +220,14 @@ function renderLogin() {
     '<div style="font-size:52px">🐒</div>' +
     '<div class="login-card">' +
       '<div class="login-title">Fakelingo</div>' +
-      '<div class="login-sub">Enter password to continue</div>' +
+      '<div class="login-sub">Sign in to continue</div>' +
+      '<div class="login-field"><div class="login-label">Username</div>' +
+        '<input class="login-inp" id="loginUser" type="text" placeholder="Enter username" autocomplete="username" autocapitalize="none"/>' +
+      '</div>' +
       '<div class="login-field"><div class="login-label">Password</div>' +
         '<input class="login-inp" id="loginPass" type="password" placeholder="Enter password" autocomplete="current-password"/>' +
       '</div>' +
-      '<div class="login-err" id="loginErr">Incorrect password.</div>' +
+      '<div class="login-err" id="loginErr">Incorrect username or password.</div>' +
       '<button class="btn-login" id="bLogin">Sign In →</button>' +
     '</div>' +
   '</div>';
@@ -414,21 +418,22 @@ function renderSettings() {
 function bind() {
   // ── Login ──
   on("bLogin", function(){
+    var u = document.getElementById("loginUser");
     var p = document.getElementById("loginPass");
     var err = document.getElementById("loginErr");
     var btn = document.getElementById("bLogin");
-    if (!p || !p.value.trim()) {
-      if (err) { err.textContent = "Please enter password."; err.classList.add("show"); }
+    if (!u || !p || !u.value.trim() || !p.value.trim()) {
+      if (err) { err.textContent = "Please enter username and password."; err.classList.add("show"); }
       return;
     }
     if (btn) btn.disabled = true;
     if (err) err.classList.remove("show");
-    verifyLogin(p.value).then(function(result) {
+    verifyLogin(u.value, p.value).then(function(result) {
       if (result) {
         setSession(result);
         V = "home"; render();
       } else {
-        if (err) { err.textContent = "Incorrect password."; err.classList.add("show"); }
+        if (err) { err.textContent = "Incorrect username or password."; err.classList.add("show"); }
         if (btn) btn.disabled = false;
       }
     }).catch(function() {
@@ -437,9 +442,11 @@ function bind() {
     });
   });
 
-  // Enter key on login field
-  var lp = document.getElementById("loginPass");
-  if (lp) lp.onkeydown = function(e){ if(e.key==="Enter") document.getElementById("bLogin") && document.getElementById("bLogin").click(); };
+  // Enter key on login fields
+  ["loginUser","loginPass"].forEach(function(id){
+    var el = document.getElementById(id);
+    if (el) el.onkeydown = function(e){ if(e.key==="Enter") document.getElementById("bLogin") && document.getElementById("bLogin").click(); };
+  });
 
   on("bLogout", function(){ clearSession(); V="login"; render(); });
 

@@ -154,13 +154,23 @@ var timerInterval = null, timerSeconds = 0, questionVisible = false;
 
 function calcStreak(h) {
   if (!h.length) return 0;
-  var s = 0, t = new Date(); t.setHours(0,0,0,0);
-  for (var i = h.length-1; i >= 0; i--) {
-    var d = new Date(h[i].date); d.setHours(0,0,0,0);
-    if (Math.round((t-d)/86400000) - s <= 1) s++;
+  // Deduplicate to unique day strings (YYYY-MM-DD)
+  var seen = {};
+  h.forEach(function(x) { seen[x.date.slice(0,10)] = true; });
+  var days = Object.keys(seen).sort();
+  // Count consecutive days ending today or yesterday
+  var today = new Date(); today.setHours(0,0,0,0);
+  var last = new Date(days[days.length-1]); last.setHours(0,0,0,0);
+  var diffFromToday = Math.round((today - last) / 86400000);
+  if (diffFromToday > 1) return 0; // last session was 2+ days ago
+  var streak = 1;
+  for (var i = days.length - 1; i > 0; i--) {
+    var d1 = new Date(days[i]); d1.setHours(0,0,0,0);
+    var d0 = new Date(days[i-1]); d0.setHours(0,0,0,0);
+    if (Math.round((d1 - d0) / 86400000) === 1) streak++;
     else break;
   }
-  return s;
+  return streak;
 }
 function scoreColor(s) { return s >= 80 ? "#4ade80" : s >= 60 ? "#facc15" : "#f87171"; }
 
@@ -274,7 +284,7 @@ function renderArticles() {
   var cards = articles.map(function(a, i) {
     return '<button class="article-card" data-i="' + i + '">' +
       '<div style="font-size:15px;font-weight:700;color:#f0f0f8;margin-bottom:4px;line-height:1.4;text-align:left">' + esc(a.title) + '</div>' +
-      '<div style="font-size:11px;color:#8888aa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;text-align:left">' + esc(a.source) + ' &middot; ' + esc(a.readTime) + '</div>' +
+      '<div style="font-size:11px;color:#8888aa;margin-bottom:8px;text-transform:uppercase;letter-spacing:.5px;text-align:left">' + esc(a.source) + ' &middot; ' + esc(a.readTime) + (a.publishedAt ? ' &middot; ' + new Date(a.publishedAt).toLocaleDateString("cs-CZ",{day:"numeric",month:"short",year:"numeric"}) : '') + '</div>' +
       '<div style="font-size:13px;color:#aaaacc;line-height:1.5;text-align:left">' + esc(a.summary) + '</div>' +
       '<div style="font-size:12px;color:#22d3ee;margin-top:8px;font-weight:600;text-align:left;display:flex;justify-content:space-between;align-items:center">' +
         'Start reading \u2192' +
@@ -290,7 +300,7 @@ function renderRead() {
   var hasText = fullText && !loading;
   var html = '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button>';
   html += '<div class="card"><div style="font-size:15px;font-weight:700;color:#f0f0f8;line-height:1.4">' + esc(article ? article.title : '') + '</div>';
-  html += '<div style="font-size:11px;color:#8888aa;margin-top:4px;text-transform:uppercase;letter-spacing:.5px">' + esc(article ? article.source : '') + ' &middot; ' + esc(topic) + ' &middot; ' + D.settings.level + '</div></div>';
+  html += '<div style="font-size:11px;color:#8888aa;margin-top:4px;text-transform:uppercase;letter-spacing:.5px">' + esc(article ? article.source : '') + ' &middot; ' + esc(topic) + ' &middot; ' + D.settings.level + (article && article.publishedAt ? ' &middot; ' + new Date(article.publishedAt).toLocaleDateString("cs-CZ",{day:"numeric",month:"short",year:"numeric"}) : '') + '</div></div>';
   if (loading) {
     html += '<div class="loading-box"><div class="spinner"></div><div class="muted">Loading article...</div></div>';
   } else {
@@ -591,10 +601,10 @@ async function fetchArticles() {
       });
       var cnt = D.settings.articleCount || 6;
       var candidates = filtered.slice(0, cnt*2).map(function(a){
-        return {title:a.title, source:a.source.name, description:a.description, url:a.url};
+        return {title:a.title, source:a.source.name, description:a.description, url:a.url, publishedAt:a.publishedAt};
       });
       if (candidates.length) {
-        var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'. Keep summaries SHORT (max 100 chars each).";
+        var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url,publishedAt},...] where summary is 2-3 sentences, readTime is like '~3 min read', and publishedAt is copied exactly from the candidate if present. Keep summaries SHORT (max 100 chars each).";
         var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
         rawArticles = safeParseJSON(picked) || [];
       }

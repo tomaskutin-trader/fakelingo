@@ -358,30 +358,127 @@ function renderQA() {
 function renderHistory() {
   var h = D.history;
   if (!h.length) return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">History</div><div style="text-align:center;color:#8888aa;padding:40px 20px">No sessions yet.<br/>Start your first lesson!</div></div>';
+
   var last30 = h.slice(-30);
   var avg = Math.round(last30.reduce(function(a,x){return a+x.score;},0) / last30.length);
-  var W=300,H=100,p=16;
-  var sc = last30.map(function(x){return x.score;});
-  var mn = Math.min.apply(null,sc), mx2 = Math.max.apply(null,sc), rng = mx2-mn||1;
-  var pts = sc.map(function(v,i){
-    var x = p+(i/Math.max(sc.length-1,1))*(W-2*p);
-    var y = p+(1-(v-mn)/rng)*(H-2*p);
+  var totalLessons = h.length;
+
+  // --- Chart 1: Last 50 lessons ---
+  var last50 = h.slice(-50);
+  var W=320,H=110,pl=36,pr=12,pt=10,pb=20;
+  var chartW = W-pl-pr, chartH = H-pt-pb;
+  var sc50 = last50.map(function(x){return x.score;});
+
+  var yLabels = [20,40,60,80,100];
+  var gridLines = yLabels.map(function(v){
+    var y = pt + (1 - v/100) * chartH;
+    return '<line x1="'+pl+'" y1="'+y+'" x2="'+(W-pr)+'" y2="'+y+'" stroke="#ffffff0a" stroke-width="1"/>' +
+      '<text x="'+(pl-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#8888aa">'+v+'</text>';
+  }).join("");
+
+  var pts50 = sc50.map(function(v,i){
+    var x = pl + (i/Math.max(sc50.length-1,1))*chartW;
+    var y = pt + (1 - v/100)*chartH;
     return [x,y];
   });
-  var poly = pts.map(function(pt){return pt[0]+","+pt[1];}).join(" ");
-  var circles = pts.map(function(pt){return '<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="4" fill="#22d3ee"/>';}).join("");
+  var poly50 = pts50.map(function(pt){return pt[0]+","+pt[1];}).join(" ");
+  var areaPath50 = "";
+  if (pts50.length > 1) {
+    areaPath50 = 'M'+pts50[0][0]+','+pts50[0][1];
+    for (var i=1;i<pts50.length;i++) areaPath50 += ' L'+pts50[i][0]+','+pts50[i][1];
+    areaPath50 += ' L'+pts50[pts50.length-1][0]+','+(pt+chartH)+' L'+pts50[0][0]+','+(pt+chartH)+' Z';
+  }
+  var circles50 = pts50.map(function(pt){return '<circle cx="'+pt[0]+'" cy="'+pt[1]+'" r="3" fill="#22d3ee"/>';}).join("");
+
+  var chart1 = '<div style="background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:14px 16px 10px">' +
+    '<div style="font-size:11px;color:#8888aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px;margin-bottom:10px">Last 50 lessons performance</div>' +
+    '<svg width="100%" viewBox="0 0 '+W+' '+H+'" style="overflow:visible">' +
+    '<defs>' +
+      '<linearGradient id="lg1" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient>' +
+      '<linearGradient id="lgA1" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#22d3ee" stop-opacity=".18"/><stop offset="100%" stop-color="#22d3ee" stop-opacity="0"/></linearGradient>' +
+    '</defs>' +
+    gridLines +
+    (pts50.length > 1 ? '<path d="'+areaPath50+'" fill="url(#lgA1)"/>' : '') +
+    (pts50.length > 1 ? '<polyline points="'+poly50+'" fill="none" stroke="url(#lg1)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
+    circles50 +
+    '</svg></div>';
+
+  // --- Chart 2: Last 50 weeks ---
+  function getWeekKey(dateStr) {
+    var d = new Date(dateStr);
+    var day = d.getDay();
+    var diff = (day === 0 ? -6 : 1) - day;
+    var mon = new Date(d); mon.setDate(d.getDate() + diff); mon.setHours(0,0,0,0);
+    return mon.toISOString().slice(0,10);
+  }
+
+  var weekMap = {};
+  var weekOrder = [];
+  h.forEach(function(x){
+    var wk = getWeekKey(x.date);
+    if (!weekMap[wk]) { weekMap[wk] = []; weekOrder.push(wk); }
+    weekMap[wk].push(x.score);
+  });
+  weekOrder = weekOrder.filter(function(v,i,a){ return a.indexOf(v)===i; });
+  weekOrder.sort();
+  var last50wk = weekOrder.slice(-50);
+
+  var wkData = last50wk.map(function(wk){
+    var arr = weekMap[wk];
+    return { wk: wk, avg: Math.round(arr.reduce(function(a,b){return a+b;},0)/arr.length), n: arr.length };
+  });
+
+  var W2=320, H2=110, pl2=36, pr2=12, pt2=10, pb2=20;
+  var chartW2 = W2-pl2-pr2, chartH2 = H2-pt2-pb2;
+
+  var gridLines2 = yLabels.map(function(v){
+    var y = pt2 + (1 - v/100) * chartH2;
+    return '<line x1="'+pl2+'" y1="'+y+'" x2="'+(W2-pr2)+'" y2="'+y+'" stroke="#ffffff0a" stroke-width="1"/>' +
+      '<text x="'+(pl2-6)+'" y="'+(y+4)+'" text-anchor="end" font-size="9" fill="#8888aa">'+v+'</text>';
+  }).join("");
+
+  var barsW = wkData.length > 0 ? Math.max(2, Math.floor(chartW2/Math.max(wkData.length,1)) - 2) : 8;
+  barsW = Math.min(barsW, 20);
+
+  var bars2 = wkData.map(function(d,i){
+    var x = pl2 + (i/Math.max(wkData.length-1,1))*chartW2;
+    var bh = (d.avg/100)*chartH2;
+    var by = pt2 + chartH2 - bh;
+    var col = d.avg >= 80 ? "#4ade80" : d.avg >= 60 ? "#facc15" : "#f87171";
+    return '<rect x="'+(x - barsW/2)+'" y="'+by+'" width="'+barsW+'" height="'+bh+'" rx="2" fill="'+col+'" opacity=".7"/>'+
+      '<circle cx="'+x+'" cy="'+by+'" r="3" fill="'+col+'"/>';
+  }).join("");
+
+  var chart2 = '<div style="background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:14px 16px 10px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">' +
+      '<div style="font-size:11px;color:#8888aa;font-weight:600;text-transform:uppercase;letter-spacing:.8px">Last 50 weeks performance</div>' +
+      '<div style="display:flex;gap:10px;font-size:10px">' +
+        '<span style="color:#4ade80">\u25A0 80+</span><span style="color:#facc15">\u25A0 60+</span><span style="color:#f87171">\u25A0 &lt;60</span>' +
+      '</div>' +
+    '</div>' +
+    (wkData.length === 0 ?
+      '<div style="text-align:center;color:#8888aa;padding:20px;font-size:13px">Not enough data yet</div>' :
+      '<svg width="100%" viewBox="0 0 '+W2+' '+H2+'" style="overflow:visible">' +
+      gridLines2 + bars2 +
+      '</svg>'
+    ) +
+    '</div>';
+
+  // --- History rows (last 30) ---
   var rows = last30.slice().reverse().map(function(x){
     return '<div class="history-row"><div>' +
       '<div style="font-size:14px;font-weight:600;color:#f0f0f8">' + esc(x.topic) + '</div>' +
       '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + new Date(x.date).toLocaleDateString("cs-CZ") + ' &middot; ' + x.duration + ' min</div></div>' +
       '<div style="font-family:\'Space Mono\',monospace;font-size:22px;font-weight:700;color:' + scoreColor(x.score) + ';flex-shrink:0">' + x.score + '</div></div>';
   }).join("");
+
   return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">Progress</div>' +
-    '<div class="card row"><span class="muted">30-day average</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#22d3ee">' + avg + '<span style="font-size:13px;opacity:.6">/100</span></span></div>' +
-    '<div style="background:#13131f;border:1px solid #ffffff12;border-radius:14px;padding:16px;overflow:hidden">' +
-    '<svg width="100%" viewBox="0 0 ' + W + ' ' + H + '" style="overflow:visible"><defs><linearGradient id="lg" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="#4ade80"/><stop offset="100%" stop-color="#22d3ee"/></linearGradient></defs>' +
-    (pts.length > 1 ? '<polyline points="' + poly + '" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>' : '') +
-    circles + '</svg></div><div class="history-list">' + rows + '</div></div>';
+    '<div style="display:flex;gap:10px">' +
+      '<div class="card row" style="flex:1"><span class="muted">30-day avg</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#22d3ee">' + avg + '<span style="font-size:13px;opacity:.6">/100</span></span></div>' +
+      '<div class="card row" style="flex:1"><span class="muted">Total lessons</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#4ade80">' + totalLessons + '</span></div>' +
+    '</div>' +
+    chart1 + chart2 +
+    '<div class="history-list">' + rows + '</div></div>';
 }
 
 function renderSettings() {

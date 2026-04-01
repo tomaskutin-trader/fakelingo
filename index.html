@@ -124,9 +124,6 @@ function loadData() {
 }
 function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
 
-function getNewsKey() { try { return localStorage.getItem("fakelingo_newskey") || ""; } catch(e){ return ""; } }
-function saveNewsKey(k) { try { localStorage.setItem("fakelingo_newskey", k); } catch(e){} }
-
 function getReadArticles() {
   try {
     var today = new Date().toISOString().slice(0,10);
@@ -407,11 +404,6 @@ function renderSettings() {
     '<button id="bAddTopic" class="btn-go">Add</button>' +
     '</div>' +
     '</div>' +
-  '<div class="sg">' +
-    '<div class="sl">NewsAPI Key</div>' +
-    '<input class="inp" id="newsKeyInput" type="password" placeholder="Paste your NewsAPI key..." style="width:100%" value="' + (getNewsKey() ? "••••••••••••" : "") + '"/>' +
-    '<div style="font-size:12px;color:#8888aa">Get free key at newsapi.org &middot; enables real articles</div>' +
-    '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
 }
 
@@ -544,8 +536,6 @@ function bind() {
   on("bSaveSettings", function(){
     var ac = document.getElementById("articleCountInput");
     if (ac) { var v = parseInt(ac.value); if (v >= 2 && v <= 20) D.settings.articleCount = v; }
-    var nk = document.getElementById("newsKeyInput");
-    if (nk && nk.value && nk.value !== "**saved**") saveNewsKey(nk.value.trim());
     save(); V="home"; render();
   });
   on("bAddTopic", function(){
@@ -585,30 +575,28 @@ function safeParseJSON(str) {
 async function fetchArticles() {
   loading=true; render();
   try {
-    var newsKey = getNewsKey();
     var readUrls = getReadArticles();
     var rawArticles = [];
 
-    if (newsKey) {
-      var resp = await fetch(WORKER, {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({newsapi: true, q: topic, key: newsKey, appSecret: getSession()})
+    // Always try NewsAPI via worker (key stored server-side as NEWS_API_KEY)
+    var resp = await fetch(WORKER, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({newsapi: true, q: topic, appSecret: getSession()})
+    });
+    var data = await resp.json();
+    if (data.articles && data.articles.length) {
+      var filtered = data.articles.filter(function(a){
+        return a.url && readUrls.indexOf(a.url) === -1 && a.description && a.title;
       });
-      var data = await resp.json();
-      if (data.articles && data.articles.length) {
-        var filtered = data.articles.filter(function(a){
-          return a.url && readUrls.indexOf(a.url) === -1 && a.description && a.title;
-        });
-        var cnt = D.settings.articleCount || 6;
-        var candidates = filtered.slice(0, cnt*2).map(function(a){
-          return {title:a.title, source:a.source.name, description:a.description, url:a.url};
-        });
-        if (candidates.length) {
-          var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'. Keep summaries SHORT (max 100 chars each).";
-          var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
-          rawArticles = safeParseJSON(picked) || [];
-        }
+      var cnt = D.settings.articleCount || 6;
+      var candidates = filtered.slice(0, cnt*2).map(function(a){
+        return {title:a.title, source:a.source.name, description:a.description, url:a.url};
+      });
+      if (candidates.length) {
+        var pickSys = "You are an English teacher. Pick "+cnt+" most suitable articles for a "+D.settings.level+" level learner studying '"+topic+"'. Return ONLY valid JSON array: [{title,source,summary,readTime,url},...] where summary is 2-3 sentences and readTime is like '~3 min read'. Keep summaries SHORT (max 100 chars each).";
+        var picked = await claude([{role:"user",content:"Candidates: "+JSON.stringify(candidates)}], pickSys);
+        rawArticles = safeParseJSON(picked) || [];
       }
     }
 

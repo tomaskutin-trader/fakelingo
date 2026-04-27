@@ -150,6 +150,7 @@ var qCount = 0, scores = [], finalScore = null;
 var qStart = null, lessonStart = null, maxQ = 5;
 var repeatPenalty = false;
 var speaking = false, listening = false, loading = false, rec = null;
+var readStart = null;
 var timerInterval = null, timerSeconds = 0, questionVisible = false;
 
 function calcStreak(h) {
@@ -363,6 +364,15 @@ function renderHistory() {
   var avg = Math.round(last30.reduce(function(a,x){return a+x.score;},0) / last30.length);
   var totalLessons = h.length;
 
+  // Total time: use durationMs if present, else fall back to duration (minutes)
+  var totalMs = h.reduce(function(acc,x){
+    return acc + (x.durationMs != null ? x.durationMs : (x.duration||0)*60000);
+  }, 0);
+  var totalMin = Math.round(totalMs/60000);
+  var totalTimeStr = totalMin >= 60
+    ? Math.floor(totalMin/60) + "h " + (totalMin%60) + "min"
+    : totalMin + " min";
+
   // --- Chart 1: Last 50 lessons ---
   var last50 = h.slice(-50);
   var W=320,H=110,pl=36,pr=12,pt=10,pb=20;
@@ -466,16 +476,19 @@ function renderHistory() {
 
   // --- History rows (last 30) ---
   var rows = last30.slice().reverse().map(function(x){
+    var durStr = x.durationMs != null
+      ? (function(ms){ var m=Math.floor(ms/60000); var s=Math.round((ms%60000)/1000); return m>0 ? m+"min "+s+"s" : s+"s"; })(x.durationMs)
+      : x.duration + " min";
     return '<div class="history-row"><div>' +
       '<div style="font-size:14px;font-weight:600;color:#f0f0f8">' + esc(x.topic) + '</div>' +
-      '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + new Date(x.date).toLocaleDateString("cs-CZ") + ' &middot; ' + x.duration + ' min</div></div>' +
+      '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + new Date(x.date).toLocaleDateString("cs-CZ") + ' &middot; ' + durStr + '</div></div>' +
       '<div style="font-family:\'Space Mono\',monospace;font-size:22px;font-weight:700;color:' + scoreColor(x.score) + ';flex-shrink:0">' + x.score + '</div></div>';
   }).join("");
 
   return '<div class="screen"><button class="btn-back" id="bBack">\u2190 Back</button><div class="title">Progress</div>' +
     '<div style="display:flex;gap:10px">' +
       '<div class="card row" style="flex:1"><span class="muted">30-day avg</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#22d3ee">' + avg + '<span style="font-size:13px;opacity:.6">/100</span></span></div>' +
-      '<div class="card row" style="flex:1"><span class="muted">Total lessons</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#4ade80">' + totalLessons + '</span></div>' +
+      '<div class="card row" style="flex:1"><span class="muted">Total lessons</span><div style="text-align:right"><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#4ade80">' + totalLessons + '</span><div style="font-size:11px;color:#8888aa;margin-top:2px">' + totalTimeStr + '</div></div></div>' +
     '</div>' +
     chart1 + chart2 +
     '<div class="history-list">' + rows + '</div></div>';
@@ -571,13 +584,14 @@ function bind() {
   });
   var acards = document.querySelectorAll("[data-i]");
   for (var i=0;i<acards.length;i++) {
-    (function(b){ b.onclick = function(){ article=articles[parseInt(b.dataset.i)]; if(article.url) markArticleRead(article.url); fullText=null; V="read"; render(); fetchArticle(); }; })(acards[i]);
+    (function(b){ b.onclick = function(){ article=articles[parseInt(b.dataset.i)]; if(article.url) markArticleRead(article.url); fullText=null; readStart=null; V="read"; render(); fetchArticle(); }; })(acards[i]);
   }
-  on("bSpeak", function(){ if(speaking){stopSpk();render();}else spk(fullText); });
+  on("bSpeak", function(){ if(speaking){stopSpk();render();}else{ readStart=readStart||Date.now(); spk(fullText); } });
   on("bStartQA", function(){
     stopSpk(); V="qa";
     qaMessages=[]; qaHistory=[]; qCount=0; scores=[]; finalScore=null;
     maxQ=Math.max(2,Math.floor(D.settings.duration*0.6));
+    readStart=readStart||Date.now();
     lessonStart=Date.now(); render(); fetchFirstQ();
   });
   on("bMic", function(){});
@@ -606,7 +620,7 @@ function bind() {
       finalScore=total;
       qaMessages.push({r:"ai",c:"Session done! \uD83C\uDF89\nFinal score: "+total+"/100\n\nKeep it up!"});
       var dur = Math.round((Date.now()-lessonStart)/60000);
-      D.history.push({score:total,topic:topic,articleTitle:article.title,duration:dur,date:new Date().toISOString()});
+      D.history.push({score:total,topic:topic,articleTitle:article.title,duration:dur,durationMs:Date.now()-(readStart||lessonStart),date:new Date().toISOString()});
       save(); render(); scrollChat();
     } else {
       loading=true; render();
@@ -791,7 +805,7 @@ async function submitAnswer(ans) {
     finalScore=total;
     qaMessages.push({r:"ai",c:"Great session! \uD83C\uDF89\nFinal score: "+total+"/100\n\nKeep it up!"});
     var dur = Math.round((Date.now()-lessonStart)/60000);
-    D.history.push({score:total,topic:topic,articleTitle:article.title,duration:dur,date:new Date().toISOString()});
+    D.history.push({score:total,topic:topic,articleTitle:article.title,duration:dur,durationMs:Date.now()-(readStart||lessonStart),date:new Date().toISOString()});
     save(); loading=false; render(); scrollChat();
   } else {
     try {

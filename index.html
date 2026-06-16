@@ -179,7 +179,7 @@ async function claude(messages, system) {
   var r = await fetch(WORKER, {
     method: "POST",
     headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({model:"claude-sonnet-4-20250514", max_tokens:1000, system:system, messages:messages, appSecret: getSession()})
+    body: JSON.stringify({model:"claude-sonnet-4-6", max_tokens:1000, system:system, messages:messages, appSecret: getSession()})
   });
   var d = await r.json();
   if (r.status === 401) { clearSession(); V="login"; render(); throw new Error("Session expired. Please log in again."); }

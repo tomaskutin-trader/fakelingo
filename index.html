@@ -255,16 +255,21 @@ function computeProdStats() {
   return { totalDays: totalDays, totalMinutesSum: totalMinutesSum, streak: streak };
 }
 var prodTickInterval = null;
-function startProdTick() { stopProdTick(); updateProdDisplay(); prodTickInterval = setInterval(updateProdDisplay, 1000); }
+function startProdTick() { stopProdTick(); prodDomIsDone = getProdTotalMs()/60000 >= PROD_GOAL_MIN; updateProdDisplay(); prodTickInterval = setInterval(updateProdDisplay, 1000); }
 function stopProdTick() { if (prodTickInterval) { clearInterval(prodTickInterval); prodTickInterval = null; } }
+var prodDomIsDone = false;
 function updateProdDisplay() {
   if (V !== "prodHome") { stopProdTick(); return; }
   ensureProdDay();
   var totalMs = getProdTotalMs(), totalMin = totalMs/60000;
+  var isDone = totalMin >= PROD_GOAL_MIN;
+  if (isDone !== prodDomIsDone) { prodDomIsDone = isDone; render(); return; } // crossed the threshold — full re-render once for the banner/label
   var remainMin = Math.max(0, PROD_GOAL_MIN - totalMin);
+  var extraMin = Math.max(0, totalMin - PROD_GOAL_MIN);
   var c = prodColor(totalMin);
   var card = document.getElementById("prodCard"); if (card) card.style.borderColor = c;
-  var remainEl = document.getElementById("prodRemain"); if (remainEl) { remainEl.textContent = Math.ceil(remainMin)+" min"; remainEl.style.color = c; }
+  var remainEl = document.getElementById("prodRemain");
+  if (remainEl) { remainEl.textContent = (isDone ? Math.floor(extraMin) : Math.ceil(remainMin)) + " min"; remainEl.style.color = c; }
   var barEl = document.getElementById("prodBar"); if (barEl) { barEl.style.width = Math.min(100,(totalMin/PROD_GOAL_MIN)*100)+"%"; barEl.style.background = c; }
 }
 // ─────────────────────────────────────────────────────────────────────────────
@@ -397,8 +402,8 @@ function renderProdHome() {
   html += '<div class="muted">' + today + statsLine + '</div>';
   html += '<div id="prodCard" style="border:3px solid ' + c + ';border-radius:20px;padding:24px;text-align:center;background:#13131f;transition:border-color .4s">';
   if (isDone) html += '<div style="font-size:13px;color:#4ade80;font-weight:700;margin-bottom:8px">\u{1F389} Today\'s goal reached!</div>';
-  html += '<div style="font-size:13px;color:#8888aa">Remaining today</div>';
-  html += '<div id="prodRemain" style="font-family:\'Space Mono\',monospace;font-size:42px;font-weight:700;color:' + c + '">' + Math.ceil(remainMin) + ' min</div>';
+  html += '<div id="prodRemainLabel" style="font-size:13px;color:#8888aa">' + (isDone ? 'Your extra effort today' : 'Remaining today') + '</div>';
+  html += '<div id="prodRemain" style="font-family:\'Space Mono\',monospace;font-size:42px;font-weight:700;color:' + c + '">' + (isDone ? Math.floor(totalMin-PROD_GOAL_MIN) : Math.ceil(remainMin)) + ' min</div>';
   html += '<div style="background:#0d0d15;border-radius:8px;height:10px;margin-top:16px;overflow:hidden">';
   html += '<div id="prodBar" style="height:100%;width:' + pct + '%;background:' + c + ';border-radius:8px;transition:width .4s"></div></div>';
   html += '<button id="bProdToggle" style="margin-top:18px;background:' + (D.prod.running ? '#f87171' : 'linear-gradient(135deg,#22d3ee,#4ade80)') + ';color:' + (D.prod.running ? '#fff' : '#0a0a0f') + ';border-radius:14px;padding:15px;font-size:16px;font-weight:700;width:100%;border:none;cursor:pointer">' + (D.prod.running ? '\u23F9 Stop' : '\u25B6 Start') + '</button>';

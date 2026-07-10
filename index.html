@@ -236,21 +236,27 @@ function formatDHM(totalMin) {
 }
 function computeProdStats() {
   var todayMin = Math.round(getProdTotalMs()/60000);
-  var all = (D.prod.history || []).map(function(x){ return {date:x.date, minutes:x.minutes}; });
+  var histMap = {};
+  (D.prod.history || []).forEach(function(x){ histMap[x.date] = x.minutes; });
   var tKey = todayKey();
-  if (!all.some(function(x){ return x.date===tKey; })) all.unshift({date:tKey, minutes:todayMin});
-  var totalDays = all.filter(function(x){ return x.minutes>0; }).length;
-  var totalMinutesSum = all.reduce(function(a,x){ return a+x.minutes; },0);
-  var sorted = all.slice().sort(function(a,b){ return a.date<b.date?1:-1; });
+  histMap[tKey] = todayMin;
+  var totalDays = Object.keys(histMap).filter(function(d){ return histMap[d] > 0; }).length;
+  var totalMinutesSum = Object.keys(histMap).reduce(function(a,d){ return a + histMap[d]; }, 0);
   var streak = 0;
   var cursor = new Date(tKey);
-  for (var i=0;i<sorted.length;i++){
-    var expected = cursor.toISOString().slice(0,10);
-    if (sorted[i].date === expected && sorted[i].minutes >= PROD_GOAL_MIN) {
-      streak++; cursor.setDate(cursor.getDate()-1);
-    } else if (sorted[i].date === expected) {
+  var isToday = true;
+  while (true) {
+    var key = cursor.toISOString().slice(0,10);
+    var min = histMap[key];
+    if (min !== undefined && min >= PROD_GOAL_MIN) {
+      streak++;
+    } else if (isToday) {
+      // today isn't finished yet (or has no minutes) — don't break the streak, just don't count it, check yesterday
+    } else {
       break;
     }
+    isToday = false;
+    cursor.setDate(cursor.getDate()-1);
   }
   return { totalDays: totalDays, totalMinutesSum: totalMinutesSum, streak: streak };
 }
@@ -349,6 +355,7 @@ function renderHome() {
   var totalMs = getProdTotalMs(), totalMin = totalMs/60000;
   var pColor = prodColor(totalMin);
   var streak = calcStreak(D.history);
+  var pStats = computeProdStats();
   var today = new Date().toLocaleDateString("en-US", {weekday:"long",day:"numeric",month:"long"});
   var html = '<div class="screen">';
   html += '<div class="row"><div class="logo">\u{1F412} Fakelingo</div><div class="muted">' + today + '</div></div>';
@@ -360,7 +367,7 @@ function renderHome() {
     '<div style="font-size:22px;color:#8888aa">\u2192</div></button>';
   html += '<button class="card" id="bGoProd" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%;border-color:' + pColor + '55">' +
     '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">\u23F1\uFE0F 120 min Rule</div>' +
-    '<div class="muted" style="margin-top:4px">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + ' min today</div></div>' +
+    '<div class="muted" style="margin-top:4px">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + ' min today' + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + '</div></div>' +
     '<div style="font-size:22px;color:' + pColor + '">\u2192</div></button>';
   html += '<button id="bLogout" style="background:transparent;color:#8888aa;font-size:13px;text-align:center;width:100%;padding:4px 0;cursor:pointer">Sign out</button>';
   html += '</div>';

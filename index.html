@@ -183,6 +183,7 @@ function ensureProdDay() {
   if (!D.prod) D.prod = defaultProd();
   if (D.prod.planTomorrow === undefined) D.prod.planTomorrow = "";
   if (D.prod.planPlus2 === undefined) D.prod.planPlus2 = "";
+  if (D.prod.planWeek === undefined) D.prod.planWeek = "";
   if (D.prod.usedExtraToday === undefined) D.prod.usedExtraToday = 0;
   // flush any running elapsed time into accumulatedMs so day-rollover math is correct
   if (D.prod.running && D.prod.runStart) {
@@ -459,11 +460,13 @@ function renderProdHome() {
   html += '<textarea class="qa-ta" id="prodNote" rows="3" placeholder="What are you working on today...">' + esc(D.prod.note || "") + '</textarea>';
   html += '</div>';
   html += '</div>';
-  html += renderExtraBank(totalMin);
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F Plan for tomorrow</div>';
   html += '<textarea class="qa-ta" id="prodPlan" rows="3" placeholder="What do you want to do tomorrow...">' + esc(D.prod.planTomorrow || "") + '</textarea></div>';
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F\u{1F5D3}\uFE0F Plan for day after tomorrow</div>';
   html += '<textarea class="qa-ta" id="prodPlan2" rows="3" placeholder="What do you want to do in two days...">' + esc(D.prod.planPlus2 || "") + '</textarea></div>';
+  html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F Plan for another week</div>';
+  html += '<textarea class="qa-ta" id="prodPlan2" rows="3" placeholder="Next week plans...">' + esc(D.prod.planWeek || "") + '</textarea></div>';
+  html += renderExtraBank(totalMin);
   var hist = (D.prod.history || []).slice(0,50);
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">';
   html += '<div class="title" style="font-size:16px">History <span class="muted" style="font-size:11px;font-weight:400">(last 50 days)</span></div>';

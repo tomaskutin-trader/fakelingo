@@ -119,7 +119,7 @@ async function verifyLogin(username, password) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function todayKey() { return new Date().toISOString().slice(0,10); }
-function defaultProd() { return {date:todayKey(), accumulatedMs:0, running:false, runStart:null, note:"", planTomorrow:"", planPlus2:"", history:[]}; }
+function defaultProd() { return {date:todayKey(), accumulatedMs:0, running:false, runStart:null, note:"", planTomorrow:"", planPlus2:"", usedExtraToday:0, history:[]}; }
 function loadData() {
   try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2",articleCount:6}, prod:defaultProd()}; }
   catch(e) { return {history:[],settings:{duration:10,level:"B2"}, prod:defaultProd()}; }
@@ -183,6 +183,7 @@ function ensureProdDay() {
   if (!D.prod) D.prod = defaultProd();
   if (D.prod.planTomorrow === undefined) D.prod.planTomorrow = "";
   if (D.prod.planPlus2 === undefined) D.prod.planPlus2 = "";
+  if (D.prod.usedExtraToday === undefined) D.prod.usedExtraToday = 0;
   // flush any running elapsed time into accumulatedMs so day-rollover math is correct
   if (D.prod.running && D.prod.runStart) {
     D.prod.accumulatedMs += Date.now() - D.prod.runStart;
@@ -190,18 +191,19 @@ function ensureProdDay() {
   }
   var today = todayKey();
   if (D.prod.date !== today) {
-    var prevMin = Math.round(D.prod.accumulatedMs / 60000);
+    var prevMin = Math.round(D.prod.accumulatedMs / 60000) + (D.prod.usedExtraToday || 0);
     if (D.prod.date && (prevMin > 0 || (D.prod.note && D.prod.note.trim()))) {
       D.prod.history = D.prod.history || [];
       D.prod.history.unshift({date: D.prod.date, minutes: prevMin, note: D.prod.note || ""});
       if (D.prod.history.length > 50) D.prod.history = D.prod.history.slice(0,50);
     }
-    // shift the rolling plan fields one day closer, reset the timer/note for the new day
+    // shift the rolling plan fields one day closer, reset the timer/note/extra-bank usage for the new day
     D.prod = {
       date: today, accumulatedMs: 0, running: false, runStart: null,
       note: D.prod.planTomorrow || "",
       planTomorrow: D.prod.planPlus2 || "",
       planPlus2: "",
+      usedExtraToday: 0,
       history: D.prod.history || []
     };
   }
@@ -209,6 +211,23 @@ function ensureProdDay() {
 }
 function getProdTotalMs() {
   return D.prod.accumulatedMs + (D.prod.running && D.prod.runStart ? (Date.now() - D.prod.runStart) : 0);
+}
+function getProdEffectiveTotalMin() {
+  return getProdTotalMs()/60000 + (D.prod.usedExtraToday || 0);
+}
+function getEntryAvailableExtra(entry) { return Math.max(0, Math.round(entry.minutes||0) - PROD_GOAL_MIN); }
+function useExtraFromHistory(idx) {
+  ensureProdDay();
+  var entry = D.prod.history[idx];
+  if (!entry) return;
+  var avail = getEntryAvailableExtra(entry);
+  var usedToday = D.prod.usedExtraToday || 0;
+  var remainingCap = Math.max(0, 60 - usedToday);
+  var amount = Math.min(avail, remainingCap);
+  if (amount <= 0) return;
+  entry.minutes -= amount;
+  D.prod.usedExtraToday = usedToday + amount;
+  save(); render();
 }
 function toggleProdTimer() {
   ensureProdDay();
@@ -235,7 +254,7 @@ function formatDHM(totalMin) {
   return parts.join(" ");
 }
 function computeProdStats() {
-  var todayMin = Math.round(getProdTotalMs()/60000);
+  var todayMin = Math.round(getProdTotalMs()/60000) + (D.prod.usedExtraToday || 0);
   var histMap = {};
   (D.prod.history || []).forEach(function(x){ histMap[x.date] = x.minutes; });
   var tKey = todayKey();
@@ -261,13 +280,13 @@ function computeProdStats() {
   return { totalDays: totalDays, totalMinutesSum: totalMinutesSum, streak: streak };
 }
 var prodTickInterval = null;
-function startProdTick() { stopProdTick(); prodDomIsDone = getProdTotalMs()/60000 >= PROD_GOAL_MIN; updateProdDisplay(); prodTickInterval = setInterval(updateProdDisplay, 1000); }
+function startProdTick() { stopProdTick(); prodDomIsDone = getProdEffectiveTotalMin() >= PROD_GOAL_MIN; updateProdDisplay(); prodTickInterval = setInterval(updateProdDisplay, 1000); }
 function stopProdTick() { if (prodTickInterval) { clearInterval(prodTickInterval); prodTickInterval = null; } }
 var prodDomIsDone = false;
 function updateProdDisplay() {
   if (V !== "prodHome") { stopProdTick(); return; }
   ensureProdDay();
-  var totalMs = getProdTotalMs(), totalMin = totalMs/60000;
+  var totalMin = getProdEffectiveTotalMin();
   var isDone = totalMin >= PROD_GOAL_MIN;
   if (isDone !== prodDomIsDone) { prodDomIsDone = isDone; render(); return; } // crossed the threshold — full re-render once for the banner/label
   var remainMin = Math.max(0, PROD_GOAL_MIN - totalMin);
@@ -352,7 +371,7 @@ function renderLogin() {
 // ─────────────────────────────────────────────────────────────────────────────
 
 function renderHome() {
-  var totalMs = getProdTotalMs(), totalMin = totalMs/60000;
+  var totalMin = getProdEffectiveTotalMin();
   var pColor = prodColor(totalMin);
   var streak = calcStreak(D.history);
   var pStats = computeProdStats();
@@ -394,8 +413,29 @@ function renderLangHome() {
   return html;
 }
 
+function renderExtraBank(effectiveTotalMin) {
+  var usedToday = D.prod.usedExtraToday || 0;
+  var remainingCap = Math.max(0, 60 - usedToday);
+  if (effectiveTotalMin >= PROD_GOAL_MIN || remainingCap <= 0) return '';
+  var eligible = [];
+  (D.prod.history || []).forEach(function(x, i) {
+    var avail = getEntryAvailableExtra(x);
+    if (avail > 0) eligible.push({idx:i, date:x.date, avail:avail});
+  });
+  if (!eligible.length) return '';
+  var rows = eligible.slice(0,10).map(function(x){
+    var useAmt = Math.min(x.avail, remainingCap);
+    return '<div class="history-row"><div><div style="font-size:14px;font-weight:600;color:#f0f0f8">' + new Date(x.date).toLocaleDateString("en-US",{day:"numeric",month:"short"}) + '</div>' +
+      '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + x.avail + ' min banked</div></div>' +
+      '<button class="bUseExtra" data-idx="' + x.idx + '" style="background:#22d3ee22;border:1px solid #22d3ee44;color:#22d3ee;border-radius:10px;padding:8px 14px;font-size:13px;font-weight:700;flex-shrink:0;cursor:pointer">Use ' + useAmt + ' min</button></div>';
+  }).join("");
+  return '<div class="card"><div class="sl" style="margin-bottom:4px">\u{1F50B} Extra Time Bank</div>' +
+    '<div class="muted" style="font-size:12px;margin-bottom:10px">Borrow time from days you exceeded 120 min to protect today\'s streak. Used today: ' + usedToday + ' / 60 min.</div>' +
+    '<div class="history-list">' + rows + '</div></div>';
+}
+
 function renderProdHome() {
-  var totalMs = getProdTotalMs(), totalMin = totalMs/60000;
+  var totalMin = getProdEffectiveTotalMin();
   var remainMin = Math.max(0, PROD_GOAL_MIN - totalMin);
   var pct = Math.min(100, (totalMin/PROD_GOAL_MIN)*100);
   var c = prodColor(totalMin);
@@ -419,6 +459,7 @@ function renderProdHome() {
   html += '<textarea class="qa-ta" id="prodNote" rows="3" placeholder="What are you working on today...">' + esc(D.prod.note || "") + '</textarea>';
   html += '</div>';
   html += '</div>';
+  html += renderExtraBank(totalMin);
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F Plan for tomorrow</div>';
   html += '<textarea class="qa-ta" id="prodPlan" rows="3" placeholder="What do you want to do tomorrow...">' + esc(D.prod.planTomorrow || "") + '</textarea></div>';
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F\u{1F5D3}\uFE0F Plan for day after tomorrow</div>';
@@ -780,6 +821,9 @@ function bind() {
   if (prodPlan) prodPlan.oninput = function(){ D.prod.planTomorrow = prodPlan.value; save(); };
   var prodPlan2 = document.getElementById("prodPlan2");
   if (prodPlan2) prodPlan2.oninput = function(){ D.prod.planPlus2 = prodPlan2.value; save(); };
+  document.querySelectorAll(".bUseExtra").forEach(function(btn){
+    btn.onclick = function(){ useExtraFromHistory(parseInt(btn.dataset.idx)); };
+  });
   var tchips = document.querySelectorAll("[data-t]");
   for (var i=0;i<tchips.length;i++) {
     (function(b){ b.onclick = function(){ topic=b.dataset.t; articles=null; V="articles"; render(); fetchArticles(); }; })(tchips[i]);

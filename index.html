@@ -466,7 +466,7 @@ function renderProdHome() {
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F\u{1F5D3}\uFE0F Plan for day after tomorrow</div>';
   html += '<textarea class="qa-ta" id="prodPlan2" rows="3" placeholder="What do you want to do in two days...">' + esc(D.prod.planPlus2 || "") + '</textarea></div>';
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F Plan for another week</div>';
-  html += '<textarea class="qa-ta" id="prodPlan2" rows="3" placeholder="Next week plans...">' + esc(D.prod.planWeek || "") + '</textarea></div>';
+  html += '<textarea class="qa-ta" id="prodPlanWeek" rows="3" placeholder="Next week plans...">' + esc(D.prod.planWeek || "") + '</textarea></div>';
   html += renderExtraBank(totalMin);
   var hist = (D.prod.history || []).slice(0,50);
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">';
@@ -825,6 +825,8 @@ function bind() {
   if (prodPlan) prodPlan.oninput = function(){ D.prod.planTomorrow = prodPlan.value; save(); };
   var prodPlan2 = document.getElementById("prodPlan2");
   if (prodPlan2) prodPlan2.oninput = function(){ D.prod.planPlus2 = prodPlan2.value; save(); };
+  var prodPlanWeek = document.getElementById("prodPlanWeek");
+  if (prodPlanWeek) prodPlanWeek.oninput = function(){ D.prod.planWeek = prodPlanWeek.value; save(); };
   document.querySelectorAll(".bUseExtra").forEach(function(btn){
     btn.onclick = function(){ useExtraFromHistory(parseInt(btn.dataset.idx)); };
   });

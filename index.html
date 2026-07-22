@@ -880,7 +880,7 @@ function renderSettings() {
     }).join("") +
     '</div>' +
     '<div style="display:flex;gap:8px;margin-top:4px">' +
-    '<input class="inp" id="newTopicInput" placeholder="Add new topic..." style="flex:1"/>' +
+    '<input class="inp" id="newTopicInput" placeholder="Add new topic..." style="flex:1;min-width:0"/>' +
     '<button id="bAddTopic" class="btn-go">Add</button>' +
     '</div>' +
     '</div>' +
@@ -888,18 +888,19 @@ function renderSettings() {
     '<div class="sl">Rules</div>' +
     '<div id="rulesList" style="display:flex;flex-direction:column;gap:6px">' +
     (D.rules || []).map(function(r){
-      return '<div style="display:flex;gap:8px;align-items:center;background:#0d0d15;border:1px solid #ffffff12;border-radius:10px;padding:8px 12px">' +
-        '<input class="inp" data-ruleid="' + r.id + '" data-field="name" value="' + esc(r.name) + '" style="flex:1;padding:8px 10px;font-size:14px"/>' +
-        '<input class="inp" type="number" min="1" max="600" data-ruleid="' + r.id + '" data-field="goalMin" value="' + r.goalMin + '" style="width:64px;padding:8px 8px;font-size:14px;flex:none"/>' +
-        '<span class="muted" style="font-size:12px;flex:none">min</span>' +
+      return '<div style="display:flex;gap:6px;align-items:center;background:#0d0d15;border:1px solid #ffffff12;border-radius:10px;padding:8px 10px">' +
+        '<input class="inp" data-ruleid="' + r.id + '" data-field="name" value="' + esc(r.name) + '" style="flex:1;min-width:0;padding:8px 10px;font-size:14px"/>' +
+        '<input class="inp" type="number" min="1" max="600" data-ruleid="' + r.id + '" data-field="goalMin" value="' + r.goalMin + '" style="width:52px;min-width:0;padding:8px 6px;font-size:14px;flex:none"/>' +
         '<button data-delruleid="' + r.id + '" style="background:transparent;color:#f87171;font-size:18px;cursor:pointer;padding:0 4px;flex:none">&times;</button>' +
         '</div>';
     }).join("") +
     '</div>' +
-    '<div style="display:flex;gap:8px;margin-top:4px">' +
-    '<input class="inp" id="newRuleName" placeholder="Rule name (e.g. READING)" style="flex:1"/>' +
-    '<input class="inp" id="newRuleMin" type="number" min="1" max="600" value="10" style="width:70px;flex:none"/>' +
-    '<button id="bAddRule" class="btn-go">Add</button>' +
+    '<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">' +
+    '<input class="inp" id="newRuleName" placeholder="Rule name (e.g. READING)" style="width:100%"/>' +
+    '<div style="display:flex;gap:8px">' +
+    '<input class="inp" id="newRuleMin" type="number" min="1" max="600" value="10" style="width:70px;min-width:0;flex:none"/>' +
+    '<button id="bAddRule" class="btn-go" style="flex:1">Add Rule</button>' +
+    '</div>' +
     '</div>' +
     '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';

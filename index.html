@@ -121,8 +121,8 @@ async function verifyLogin(username, password) {
 function todayKey() { return new Date().toISOString().slice(0,10); }
 function defaultProd() { return {date:todayKey(), accumulatedMs:0, running:false, runStart:null, note:"", planTomorrow:"", planPlus2:"", usedExtraToday:0, history:[]}; }
 function loadData() {
-  try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2",articleCount:6}, prod:defaultProd()}; }
-  catch(e) { return {history:[],settings:{duration:10,level:"B2"}, prod:defaultProd()}; }
+  try { var r = localStorage.getItem(SK); return r ? JSON.parse(r) : {history:[],settings:{duration:10,level:"B2",articleCount:6}, prod:defaultProd(), rules:[]}; }
+  catch(e) { return {history:[],settings:{duration:10,level:"B2"}, prod:defaultProd(), rules:[]}; }
 }
 function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
 
@@ -241,6 +241,17 @@ function toggleProdTimer() {
   }
   save(); render();
 }
+function setProdTime() {
+  ensureProdDay();
+  var current = Math.round(getProdTotalMs()/60000);
+  var input = prompt("Set today's time for 120 min Rule (minutes):", current);
+  if (input === null) return;
+  var val = parseInt(input);
+  if (isNaN(val) || val < 0) return;
+  D.prod.accumulatedMs = val * 60000;
+  if (D.prod.running) D.prod.runStart = Date.now();
+  save(); render();
+}
 function prodColor(totalMin) {
   if (totalMin <= 30) return "#f87171";
   if (totalMin <= 90) return "#f59e0b";
@@ -301,6 +312,96 @@ function updateProdDisplay() {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── Custom Rules (generic X min rules, e.g. "10min READING") ───────────────
+function defaultRuleState() { return {date:todayKey(), accumulatedMs:0, running:false, runStart:null, history:[]}; }
+function makeRule(name, goalMin) {
+  var r = defaultRuleState();
+  r.id = "rule_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
+  r.icon = "\u{1F3AF}";
+  r.name = name;
+  r.goalMin = goalMin;
+  return r;
+}
+function ensureRuleDay(rule) {
+  if (rule.running && rule.runStart) {
+    rule.accumulatedMs += Date.now() - rule.runStart;
+    rule.runStart = Date.now();
+  }
+  var today = todayKey();
+  if (rule.date !== today) {
+    var prevMin = Math.round(rule.accumulatedMs / 60000);
+    if (rule.date && prevMin > 0) {
+      rule.history = rule.history || [];
+      rule.history.unshift({date: rule.date, minutes: prevMin});
+      if (rule.history.length > 50) rule.history = rule.history.slice(0,50);
+    }
+    rule.date = today; rule.accumulatedMs = 0; rule.running = false; rule.runStart = null;
+  }
+}
+function ensureAllRulesDay() {
+  (D.rules || []).forEach(function(r){ ensureRuleDay(r); });
+  save();
+}
+function getRuleTotalMs(rule) {
+  return rule.accumulatedMs + (rule.running && rule.runStart ? (Date.now() - rule.runStart) : 0);
+}
+function toggleRuleTimer(id) {
+  var rule = (D.rules || []).find(function(r){ return r.id === id; });
+  if (!rule) return;
+  ensureRuleDay(rule);
+  if (rule.running) {
+    rule.accumulatedMs += Date.now() - rule.runStart;
+    rule.running = false; rule.runStart = null;
+  } else {
+    rule.running = true; rule.runStart = Date.now();
+  }
+  save(); render();
+}
+function ruleStreak(rule) {
+  var todayMin = Math.round(getRuleTotalMs(rule)/60000);
+  var histMap = {};
+  (rule.history || []).forEach(function(x){ histMap[x.date] = x.minutes; });
+  var tKey = todayKey();
+  histMap[tKey] = todayMin;
+  var streak = 0, cursor = new Date(tKey), isToday = true;
+  while (true) {
+    var key = cursor.toISOString().slice(0,10);
+    var min = histMap[key];
+    if (min !== undefined && min >= rule.goalMin) { streak++; }
+    else if (isToday) { /* today unfinished — skip, don't break */ }
+    else { break; }
+    isToday = false;
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return streak;
+}
+function ruleTotalAllTime(rule) {
+  var sum = (rule.history || []).reduce(function(a,x){ return a+x.minutes; },0);
+  return sum + Math.round(getRuleTotalMs(rule)/60000);
+}
+var homeTickInterval = null;
+function startHomeTick() { stopHomeTick(); homeTickInterval = setInterval(updateHomeDisplay, 1000); }
+function stopHomeTick() { if (homeTickInterval) { clearInterval(homeTickInterval); homeTickInterval = null; } }
+function updateHomeDisplay() {
+  if (V !== "home") { stopHomeTick(); return; }
+  (D.rules || []).forEach(function(r){
+    var totalMin = Math.floor(getRuleTotalMs(r)/60000);
+    var done = totalMin >= r.goalMin;
+    var inProgress = totalMin > 0 || r.running;
+    var streak = ruleStreak(r), allTime = ruleTotalAllTime(r);
+    var card = document.getElementById("ruleCard_"+r.id);
+    if (card) card.style.borderColor = done ? "#4ade80" : (inProgress ? "#f59e0b" : "#ffffff12");
+    var stat = document.getElementById("ruleStat_"+r.id);
+    if (stat) stat.textContent = totalMin + " / " + r.goalMin + " min today \u00B7 Total: " + formatDHM(allTime) + (streak>0 ? " \u00B7 \u{1F525} " + streak + "d" : "");
+  });
+  var pTotalMin = getProdEffectiveTotalMin();
+  var pCard = document.getElementById("bGoProd");
+  if (pCard) pCard.style.borderColor = prodColor(pTotalMin) + "55";
+  var pStat = document.getElementById("hpProdStat");
+  if (pStat) pStat.textContent = Math.floor(pTotalMin) + " / " + PROD_GOAL_MIN + " min today" + (computeProdStats().streak>0 ? " \u00B7 \u{1F525} " + computeProdStats().streak + " day streak" : "");
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 async function claude(messages, system) {
   var r = await fetch(WORKER, {
     method: "POST",
@@ -335,7 +436,7 @@ function stopSpk() { if (window.speechSynthesis) window.speechSynthesis.cancel()
 
 function render() {
   var app = document.getElementById("app");
-  if (V !== "login") ensureProdDay();
+  if (V !== "login") { ensureProdDay(); ensureAllRulesDay(); }
   if (V === "login") app.innerHTML = renderLogin();
   else if (V === "home") app.innerHTML = renderHome();
   else if (V === "langHome") app.innerHTML = renderLangHome();
@@ -347,6 +448,7 @@ function render() {
   else if (V === "settings") app.innerHTML = renderSettings();
   else if (V === "prodHome") app.innerHTML = renderProdHome();
   if (V === "prodHome") startProdTick(); else stopProdTick();
+  if (V === "home") startHomeTick(); else stopHomeTick();
   bind();
 }
 
@@ -388,9 +490,26 @@ function renderHome() {
     '<div style="font-size:22px;color:#8888aa">\u2192</div></button>';
   html += '<button class="card" id="bGoProd" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%;border-color:' + pColor + '55">' +
     '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">\u23F1\uFE0F 120 min Rule</div>' +
-    '<div class="muted" style="margin-top:4px">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + ' min today' + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + '</div></div>' +
+    '<div class="muted" style="margin-top:4px" id="hpProdStat">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + ' min today' + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + '</div></div>' +
     '<div style="font-size:22px;color:' + pColor + '">\u2192</div></button>';
-  html += '<button id="bLogout" style="background:transparent;color:#8888aa;font-size:13px;text-align:center;width:100%;padding:4px 0;cursor:pointer">Sign out</button>';
+  (D.rules || []).forEach(function(r){
+    var totalMin2 = Math.floor(getRuleTotalMs(r)/60000);
+    var done = totalMin2 >= r.goalMin;
+    var inProgress = totalMin2 > 0 || r.running;
+    var borderColor = done ? "#4ade80" : (inProgress ? "#f59e0b" : "#ffffff12");
+    var streak2 = ruleStreak(r), allTime = ruleTotalAllTime(r);
+    html += '<div class="rule-card" id="ruleCard_' + r.id + '" style="background:#13131f;border:1px solid ' + borderColor + ';border-radius:14px;padding:16px 18px;transition:border-color .3s">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center">' +
+        '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">' + r.icon + ' ' + esc(r.name) + (done ? ' <span style="font-size:12px;color:#4ade80;font-weight:700">\u2713</span>' : '') + '</div>' +
+        '<div class="muted" style="margin-top:4px" id="ruleStat_' + r.id + '">' + totalMin2 + ' / ' + r.goalMin + ' min today \u00B7 Total: ' + formatDHM(allTime) + (streak2 > 0 ? ' \u00B7 \u{1F525} ' + streak2 + 'd' : '') + '</div></div>' +
+        '<button class="bRuleToggle" data-id="' + r.id + '" style="background:' + (r.running ? '#f87171' : 'linear-gradient(135deg,#22d3ee,#4ade80)') + ';color:' + (r.running ? '#fff' : '#0a0a0f') + ';border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;flex-shrink:0;border:none;cursor:pointer">' + (r.running ? '\u23F9 Stop' : '\u25B6 Start') + '</button>' +
+      '</div></div>';
+  });
+  html += '<div style="display:flex;justify-content:center;gap:18px;margin-top:6px">' +
+    '<button id="bSettings" style="color:#8888aa;font-size:13px">Settings</button>' +
+    '<span style="color:#33334a">|</span>' +
+    '<button id="bLogout" style="color:#8888aa;font-size:13px">Sign out</button>' +
+  '</div>';
   html += '</div>';
   return html;
 }
@@ -409,7 +528,7 @@ function renderLangHome() {
   html += '</div>';
   if (last) html += '<div class="card row"><span class="muted">Last session</span><span style="font-family:\'Space Mono\',monospace;font-size:24px;font-weight:700;color:#4ade80">' + last.score + '<span style="font-size:13px;opacity:.6">/100</span></span></div>';
   html += '<button class="btn-primary" id="bStart">Start Today\'s Lesson</button>';
-  html += '<div class="nav-row"><button class="btn-nav" id="bHistory">\u{1F4C8} History</button><button class="btn-nav" id="bSettings">\u2699\uFE0F Settings</button></div>';
+  html += '<div class="nav-row"><button class="btn-nav" id="bHistory" style="width:100%">\u{1F4C8} History</button></div>';
   html += '<button id="bLogout" style="background:transparent;color:#8888aa;font-size:13px;text-align:center;width:100%;padding:4px 0;cursor:pointer">Sign out</button>';
   html += '</div>';
   return html;
@@ -456,6 +575,7 @@ function renderProdHome() {
   html += '<div style="background:#0d0d15;border-radius:8px;height:10px;margin-top:16px;overflow:hidden">';
   html += '<div id="prodBar" style="height:100%;width:' + pct + '%;background:' + c + ';border-radius:8px;transition:width .4s"></div></div>';
   html += '<button id="bProdToggle" style="margin-top:18px;background:' + (D.prod.running ? '#f87171' : 'linear-gradient(135deg,#22d3ee,#4ade80)') + ';color:' + (D.prod.running ? '#fff' : '#0a0a0f') + ';border-radius:14px;padding:15px;font-size:16px;font-weight:700;width:100%;border:none;cursor:pointer">' + (D.prod.running ? '\u23F9 Stop' : '\u25B6 Start') + '</button>';
+  html += '<button id="bProdSetTime" style="margin-top:8px;background:transparent;border:1px solid #ffffff18;border-radius:12px;padding:9px;font-size:12px;color:#8888aa;width:100%;cursor:pointer">\u{1F553} Set time</button>';
   html += '<div style="margin-top:16px;text-align:left;background:#0d0d15;border-radius:12px;padding:12px 14px">';
   html += '<div class="sl" style="margin-bottom:8px">\u{1F4DD} Notes</div>';
   html += '<textarea class="qa-ta" id="prodNote" rows="3" placeholder="What are you working on today...">' + esc(D.prod.note || "") + '</textarea>';
@@ -764,6 +884,24 @@ function renderSettings() {
     '<button id="bAddTopic" class="btn-go">Add</button>' +
     '</div>' +
     '</div>' +
+    '<div class="sg">' +
+    '<div class="sl">Rules</div>' +
+    '<div id="rulesList" style="display:flex;flex-direction:column;gap:6px">' +
+    (D.rules || []).map(function(r){
+      return '<div style="display:flex;gap:8px;align-items:center;background:#0d0d15;border:1px solid #ffffff12;border-radius:10px;padding:8px 12px">' +
+        '<input class="inp" data-ruleid="' + r.id + '" data-field="name" value="' + esc(r.name) + '" style="flex:1;padding:8px 10px;font-size:14px"/>' +
+        '<input class="inp" type="number" min="1" max="600" data-ruleid="' + r.id + '" data-field="goalMin" value="' + r.goalMin + '" style="width:64px;padding:8px 8px;font-size:14px;flex:none"/>' +
+        '<span class="muted" style="font-size:12px;flex:none">min</span>' +
+        '<button data-delruleid="' + r.id + '" style="background:transparent;color:#f87171;font-size:18px;cursor:pointer;padding:0 4px;flex:none">&times;</button>' +
+        '</div>';
+    }).join("") +
+    '</div>' +
+    '<div style="display:flex;gap:8px;margin-top:4px">' +
+    '<input class="inp" id="newRuleName" placeholder="Rule name (e.g. READING)" style="flex:1"/>' +
+    '<input class="inp" id="newRuleMin" type="number" min="1" max="600" value="10" style="width:70px;flex:none"/>' +
+    '<button id="bAddRule" class="btn-go">Add</button>' +
+    '</div>' +
+    '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
 }
 
@@ -811,14 +949,19 @@ function bind() {
     else if (V==="articles") V="topics";
     else if (V==="read") V="articles";
     else if (V==="qa") { V="read"; qaMessages=[]; qCount=0; scores=[]; finalScore=null; }
-    else if (V==="history" || V==="settings") V="langHome";
+    else if (V==="history") V="langHome";
+    else if (V==="settings") V="home";
     else if (V==="langHome" || V==="prodHome") V="home";
     else V="home";
     render();
   });
   on("bGoLang", function(){ V="langHome"; render(); });
   on("bGoProd", function(){ V="prodHome"; render(); });
+  document.querySelectorAll(".bRuleToggle").forEach(function(btn){
+    btn.onclick = function(){ toggleRuleTimer(btn.dataset.id); };
+  });
   on("bProdToggle", toggleProdTimer);
+  on("bProdSetTime", setProdTime);
   var prodNote = document.getElementById("prodNote");
   if (prodNote) prodNote.oninput = function(){ D.prod.note = prodNote.value; save(); };
   var prodPlan = document.getElementById("prodPlan");
@@ -931,6 +1074,38 @@ function bind() {
       saveTopics();
       render();
     };
+  });
+  document.querySelectorAll("[data-ruleid][data-field]").forEach(function(inp){
+    inp.oninput = function(){
+      var rule = (D.rules || []).find(function(r){ return r.id === inp.dataset.ruleid; });
+      if (!rule) return;
+      if (inp.dataset.field === "name") rule.name = inp.value;
+      else if (inp.dataset.field === "goalMin") {
+        var v = parseInt(inp.value);
+        if (v >= 1) rule.goalMin = v;
+      }
+      save();
+    };
+  });
+  document.querySelectorAll("[data-delruleid]").forEach(function(btn){
+    btn.onclick = function(){
+      var id = btn.dataset.delruleid;
+      var rule = (D.rules || []).find(function(r){ return r.id === id; });
+      if (!rule) return;
+      if ((rule.history && rule.history.length > 0) && !confirm('Delete "' + rule.name + '"? It has saved history that will be lost.')) return;
+      D.rules = D.rules.filter(function(r){ return r.id !== id; });
+      save(); render();
+    };
+  });
+  on("bAddRule", function(){
+    var nameInp = document.getElementById("newRuleName");
+    var minInp = document.getElementById("newRuleMin");
+    var name = nameInp ? nameInp.value.trim() : "";
+    var min = minInp ? parseInt(minInp.value) : 10;
+    if (!name || !(min >= 1)) return;
+    D.rules = D.rules || [];
+    D.rules.push(makeRule(name, min));
+    save(); render();
   });
   var chat = document.getElementById("qaChat");
   if (chat) chat.scrollTop = chat.scrollHeight;

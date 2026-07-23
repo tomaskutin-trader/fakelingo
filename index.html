@@ -511,7 +511,7 @@ function renderHome() {
     '<div style="font-size:22px;color:#8888aa">\u2192</div></button>';
   html += '<button class="card" id="bGoProd" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%;border-color:' + pColor + '55">' +
     '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">\u23F1\uFE0F 120 min Rule</div>' +
-    '<div class="muted" style="margin-top:4px" id="hpProdStat">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + ' min today' + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + (pStats.maxStreak > 0 ? ' &middot; \u{1F3C6} ' + pStats.maxStreak + 'd best' : '') + '</div></div>' +
+    '<div class="muted" style="margin-top:4px" id="hpProdStat">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + (pStats.maxStreak > 0 ? ' &middot; \u{1F3C6} ' + pStats.maxStreak + 'd best' : '') + '</div></div>' +
     '<div style="font-size:22px;color:' + pColor + '">\u2192</div></button>';
   (D.rules || []).forEach(function(r){
     var totalMin2 = Math.floor(getRuleTotalMs(r)/60000);
@@ -522,7 +522,7 @@ function renderHome() {
     html += '<div class="rule-card" id="ruleCard_' + r.id + '" style="background:#13131f;border:1px solid ' + borderColor + ';border-radius:14px;padding:16px 18px;transition:border-color .3s">' +
       '<div style="display:flex;justify-content:space-between;align-items:center">' +
         '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">' + r.icon + ' ' + esc(r.name) + (done ? ' <span style="font-size:12px;color:#4ade80;font-weight:700">\u2713</span>' : '') + '</div>' +
-        '<div class="muted" style="margin-top:4px" id="ruleStat_' + r.id + '">' + totalMin2 + ' / ' + r.goalMin + ' min today \u00B7 Total: ' + formatDHM(allTime) + (streak2 > 0 ? ' \u00B7 \u{1F525} ' + streak2 + 'd' : '') + ((r.maxStreak||0) > 0 ? ' \u00B7 \u{1F3C6} ' + r.maxStreak + 'd best' : '') + '</div></div>' +
+        '<div class="muted" style="margin-top:4px" id="ruleStat_' + r.id + '">' + totalMin2 + ' / ' + r.goalMin + ' \u00B7 (' + formatDHM(allTime) + (streak2 > 0 ? ') \u{1F525} ' + streak2 + 'd' : '') + ((r.maxStreak||0) > 0 ? ' \u00B7 \u{1F3C6} ' + r.maxStreak + 'd best' : '') + '</div></div>' +
         '<button class="bRuleToggle" data-id="' + r.id + '" style="background:' + (r.running ? '#f87171' : 'linear-gradient(135deg,#22d3ee,#4ade80)') + ';color:' + (r.running ? '#fff' : '#0a0a0f') + ';border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;flex-shrink:0;border:none;cursor:pointer">' + (r.running ? '\u23F9 Stop' : '\u25B6 Start') + '</button>' +
       '</div></div>';
   });

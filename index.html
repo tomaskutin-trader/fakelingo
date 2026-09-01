@@ -154,6 +154,7 @@ var repeatPenalty = false;
 var speaking = false, listening = false, loading = false, rec = null;
 var readStart = null;
 var timerInterval = null, timerSeconds = 0, questionVisible = false;
+var newRuleNameDraft = "", newRuleMinDraft = 10, newRuleType = "time", newRulePeriod = "daily";
 
 function calcStreak(h) {
   if (!h.length) return 0;
@@ -176,6 +177,13 @@ function calcStreak(h) {
   return streak;
 }
 function scoreColor(s) { return s >= 80 ? "#4ade80" : s >= 60 ? "#facc15" : "#f87171"; }
+function weekKeyOf(dateStr) {
+  var d = new Date(dateStr);
+  var day = d.getDay();
+  var diff = (day === 0 ? -6 : 1) - day;
+  var mon = new Date(d); mon.setDate(d.getDate() + diff); mon.setHours(0,0,0,0);
+  return mon.toISOString().slice(0,10);
+}
 
 // ── 120 min Rule (productivity module) ─────────────────────────────────────
 var PROD_GOAL_MIN = 120;
@@ -266,6 +274,21 @@ function formatDHM(totalMin) {
   parts.push(m+"min");
   return parts.join(" ");
 }
+function editHistoryEntry(idx) {
+  var entry = D.prod.history[idx];
+  if (!entry) return;
+  var input = prompt("Fix the time for " + entry.date + " (minutes):", entry.minutes);
+  if (input === null) return;
+  var val = parseInt(input);
+  if (isNaN(val) || val < 0) return;
+  entry.minutes = val;
+  // clean recompute of the all-time record — don't keep a stale max inflated by the bad data we just fixed
+  var histMap = {};
+  (D.prod.history || []).forEach(function(x){ histMap[x.date] = x.minutes; });
+  histMap[todayKey()] = Math.round(getProdTotalMs()/60000) + (D.prod.usedExtraToday || 0);
+  D.prod.maxStreak = longestStreakInMap(histMap, PROD_GOAL_MIN);
+  save(); render();
+}
 function longestStreakInMap(histMap, goalMin) {
   var dates = Object.keys(histMap).filter(function(d){ return histMap[d] >= goalMin; }).sort();
   if (!dates.length) return 0;
@@ -329,15 +352,34 @@ function updateProdDisplay() {
 
 // ── Custom Rules (generic X min rules, e.g. "10min READING") ───────────────
 function defaultRuleState() { return {date:todayKey(), accumulatedMs:0, running:false, runStart:null, maxStreak:0, history:[]}; }
-function makeRule(name, goalMin) {
+function makeRule(name, type, opts) {
+  opts = opts || {};
+  if (type === "checkbox") {
+    return {
+      id: "rule_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6),
+      icon: "\u2705",
+      name: name,
+      type: "checkbox",
+      period: opts.period === "weekly" ? "weekly" : "daily",
+      startDate: todayKey(),
+      doneDates: [],
+      maxStreak: 0
+    };
+  }
   var r = defaultRuleState();
   r.id = "rule_" + Date.now().toString(36) + Math.random().toString(36).slice(2,6);
   r.icon = "\u{1F3AF}";
   r.name = name;
-  r.goalMin = goalMin;
+  r.type = "time";
+  r.goalMin = opts.goalMin || 10;
   return r;
 }
 function ensureRuleDay(rule) {
+  if (rule.type === "checkbox") {
+    if (!rule.doneDates) rule.doneDates = [];
+    if (!rule.startDate) rule.startDate = rule.date || todayKey();
+    return;
+  }
   if (rule.running && rule.runStart) {
     rule.accumulatedMs += Date.now() - rule.runStart;
     rule.runStart = Date.now();
@@ -398,12 +440,69 @@ function ruleTotalAllTime(rule) {
   var sum = (rule.history || []).reduce(function(a,x){ return a+x.minutes; },0);
   return sum + Math.round(getRuleTotalMs(rule)/60000);
 }
+function longestStreakInKeys(keys, stepDays) {
+  var sorted = keys.slice().sort();
+  if (!sorted.length) return 0;
+  var best = 1, current = 1;
+  for (var i = 1; i < sorted.length; i++) {
+    var diffDays = Math.round((new Date(sorted[i]) - new Date(sorted[i-1])) / 86400000);
+    current = (diffDays === stepDays) ? current + 1 : 1;
+    if (current > best) best = current;
+  }
+  return best;
+}
+function checkboxCurrentPeriodKey(rule) {
+  return rule.period === "weekly" ? weekKeyOf(todayKey()) : todayKey();
+}
+function checkboxRuleStreak(rule) {
+  var isWeekly = rule.period === "weekly";
+  var stepDays = isWeekly ? 7 : 1;
+  var doneKeys = rule.doneDates || [];
+  var doneSet = {}; doneKeys.forEach(function(k){ doneSet[k] = true; });
+  var streak = 0, cursor = new Date(checkboxCurrentPeriodKey(rule)), isCurrent = true;
+  while (true) {
+    var key = cursor.toISOString().slice(0,10);
+    if (doneSet[key]) { streak++; }
+    else if (isCurrent) { /* current period unfinished — don't break, just don't count it */ }
+    else { break; }
+    isCurrent = false;
+    cursor.setDate(cursor.getDate() - stepDays);
+  }
+  if (rule.maxStreak === undefined) rule.maxStreak = 0;
+  var historicalBest = longestStreakInKeys(doneKeys, stepDays);
+  var newMax = Math.max(rule.maxStreak, historicalBest, streak);
+  if (newMax > rule.maxStreak) { rule.maxStreak = newMax; save(); }
+  return streak;
+}
+function checkboxElapsedPeriods(rule) {
+  var isWeekly = rule.period === "weekly";
+  var start = rule.startDate || todayKey();
+  if (isWeekly) {
+    var startWk = weekKeyOf(start), curWk = weekKeyOf(todayKey());
+    var diffDays = Math.round((new Date(curWk) - new Date(startWk)) / 86400000);
+    return Math.floor(diffDays/7) + 1;
+  }
+  var diffDays2 = Math.round((new Date(todayKey()) - new Date(start)) / 86400000);
+  return diffDays2 + 1;
+}
+function toggleCheckboxDone(id) {
+  var rule = (D.rules || []).find(function(r){ return r.id === id; });
+  if (!rule) return;
+  ensureRuleDay(rule);
+  var key = checkboxCurrentPeriodKey(rule);
+  rule.doneDates = rule.doneDates || [];
+  var idx = rule.doneDates.indexOf(key);
+  if (idx === -1) rule.doneDates.push(key);
+  else rule.doneDates.splice(idx, 1);
+  save(); render();
+}
 var homeTickInterval = null;
 function startHomeTick() { stopHomeTick(); homeTickInterval = setInterval(updateHomeDisplay, 1000); }
 function stopHomeTick() { if (homeTickInterval) { clearInterval(homeTickInterval); homeTickInterval = null; } }
 function updateHomeDisplay() {
   if (V !== "home") { stopHomeTick(); return; }
   (D.rules || []).forEach(function(r){
+    if (r.type === "checkbox") return; // static until toggled, no per-second tick needed
     var totalMin = Math.floor(getRuleTotalMs(r)/60000);
     var done = totalMin >= r.goalMin;
     var inProgress = totalMin > 0 || r.running;
@@ -411,7 +510,7 @@ function updateHomeDisplay() {
     var card = document.getElementById("ruleCard_"+r.id);
     if (card) card.style.borderColor = done ? "#4ade80" : (inProgress ? "#f59e0b" : "#ffffff12");
     var stat = document.getElementById("ruleStat_"+r.id);
-    if (stat) stat.textContent = totalMin + " / " + r.goalMin + " min today \u00B7 Total: " + formatDHM(allTime) + (streak>0 ? " \u00B7 \u{1F525} " + streak + "d" : "") + (rule_maxDisplay(r.maxStreak));
+    if (stat) stat.textContent = totalMin + " / " + r.goalMin + " \u00B7 (" + formatDHM(allTime) + (streak>0 ? ") \u{1F525} " + streak + "d" : "") + (rule_maxDisplay(r.maxStreak));
   });
   var pTotalMin = getProdEffectiveTotalMin();
   var pCard = document.getElementById("bGoProd");
@@ -501,19 +600,43 @@ function renderHome() {
   var streak = calcStreak(D.history);
   var pStats = computeProdStats();
   var today = new Date().toLocaleDateString("en-US", {weekday:"long",day:"numeric",month:"long"});
+  var langDoneToday = D.history.some(function(x){ return x.date.slice(0,10) === todayKey(); });
+  var langBorderColor = langDoneToday ? "#4ade80" : "#ffffff12";
+  var langTotalLessons = D.history.length;
+  var langTotalMs = D.history.reduce(function(acc,x){ return acc + (x.durationMs != null ? x.durationMs : (x.duration||0)*60000); }, 0);
+  var langTotalMin = Math.round(langTotalMs/60000);
+  var langTotalTimeStr = langTotalMin >= 60 ? Math.floor(langTotalMin/60) + "h " + (langTotalMin%60) + "min" : langTotalMin + " min";
+  var langStatLine = langTotalLessons
+    ? (streak > 0 ? '\u{1F525} ' + streak + ' day streak \u00B7 ' : '') + langTotalLessons + ' lesson' + (langTotalLessons !== 1 ? 's' : '') + ' \u00B7 ' + langTotalTimeStr
+    : 'Start today\'s lesson';
   var html = '<div class="screen">';
   html += '<div class="row"><div class="logo">\u{1F412} Fakelingo</div><div class="muted">' + today + '</div></div>';
   html += '<div class="hero-card"><div style="font-size:40px;margin-bottom:6px">\u{1F412}</div>';
   html += '<div class="hero-title" style="font-size:19px">What are we improving today?</div></div>';
-  html += '<button class="card" id="bGoLang" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%">' +
+  html += '<button class="card" id="bGoLang" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%;border-color:' + langBorderColor + '">' +
     '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">\u{1F3A7} English Lessons</div>' +
-    '<div class="muted" style="margin-top:4px">' + (streak > 0 ? '\u{1F525} ' + streak + ' day streak' : 'Start today\'s lesson') + '</div></div>' +
+    '<div class="muted" style="margin-top:4px">' + langStatLine + '</div></div>' +
     '<div style="font-size:22px;color:#8888aa">\u2192</div></button>';
   html += '<button class="card" id="bGoProd" style="text-align:left;cursor:pointer;display:flex;justify-content:space-between;align-items:center;padding:20px 18px;width:100%;border-color:' + pColor + '55">' +
     '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">\u23F1\uFE0F 120 min Rule</div>' +
     '<div class="muted" style="margin-top:4px" id="hpProdStat">' + Math.floor(totalMin) + ' / ' + PROD_GOAL_MIN + (pStats.streak > 0 ? ' &middot; \u{1F525} ' + pStats.streak + ' day streak' : '') + (pStats.maxStreak > 0 ? ' &middot; \u{1F3C6} ' + pStats.maxStreak + 'd best' : '') + '</div></div>' +
     '<div style="font-size:22px;color:' + pColor + '">\u2192</div></button>';
   (D.rules || []).forEach(function(r){
+    if (r.type === "checkbox") {
+      var isWeekly = r.period === "weekly";
+      var unit = isWeekly ? "w" : "d";
+      var periodLabel = isWeekly ? "this week" : "today";
+      var done2 = (r.doneDates||[]).indexOf(checkboxCurrentPeriodKey(r)) !== -1;
+      var borderColor2 = done2 ? "#4ade80" : "#ffffff12";
+      var streak3 = checkboxRuleStreak(r), elapsed = checkboxElapsedPeriods(r), completed = (r.doneDates||[]).length;
+      html += '<div class="rule-card" id="ruleCard_' + r.id + '" style="background:#13131f;border:1px solid ' + borderColor2 + ';border-radius:14px;padding:16px 18px;transition:border-color .3s">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center">' +
+          '<div><div style="font-size:16px;font-weight:700;color:#f0f0f8">' + r.icon + ' ' + esc(r.name) + (done2 ? ' <span style="font-size:12px;color:#4ade80;font-weight:700">\u2713</span>' : '') + '</div>' +
+          '<div class="muted" style="margin-top:4px" id="ruleStat_' + r.id + '">' + completed + '/' + elapsed + (streak3 > 0 ? ' \u00B7 \u{1F525} ' + streak3 + unit : '') + ((r.maxStreak||0) > 0 ? ' \u00B7 \u{1F3C6} ' + r.maxStreak + unit + ' best' : '') + '</div></div>' +
+          '<button class="bRuleCheckToggle" data-id="' + r.id + '" style="background:' + (done2 ? '#4ade8022' : 'linear-gradient(135deg,#22d3ee,#4ade80)') + ';color:' + (done2 ? '#4ade80' : '#0a0a0f') + ';border:' + (done2 ? '1px solid #4ade8044' : 'none') + ';border-radius:10px;padding:9px 14px;font-size:13px;font-weight:700;flex-shrink:0;cursor:pointer">' + (done2 ? '\u2713 Done' : 'Mark done') + '</button>' +
+        '</div></div>';
+      return;
+    }
     var totalMin2 = Math.floor(getRuleTotalMs(r)/60000);
     var done = totalMin2 >= r.goalMin;
     var inProgress = totalMin2 > 0 || r.running;
@@ -630,11 +753,14 @@ function renderProdHome() {
       '<span style="color:#4ade80">\u25A0 120+ min</span><span style="color:#f59e0b">\u25A0 45\u2013119 min</span><span style="color:#f87171">\u25A0 &lt;45 min</span>' +
       '</div></div>';
     html += '<div class="history-list">';
-    hist.forEach(function(x) {
+    hist.forEach(function(x, i) {
       var hc = prodBarColor(x.minutes);
       html += '<div class="history-row"><div><div style="font-size:14px;font-weight:600;color:#f0f0f8">' + new Date(x.date).toLocaleDateString("en-US",{day:"numeric",month:"short"}) + '</div>' +
         (x.note ? '<div style="font-size:12px;color:#8888aa;margin-top:2px">' + esc(x.note) + '</div>' : '') + '</div>' +
-        '<div style="font-family:\'Space Mono\',monospace;font-size:18px;font-weight:700;color:' + hc + ';flex-shrink:0">' + x.minutes + ' min</div></div>';
+        '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0">' +
+        '<div style="font-family:\'Space Mono\',monospace;font-size:18px;font-weight:700;color:' + hc + '">' + x.minutes + ' min</div>' +
+        '<button class="bEditHistory" data-idx="' + i + '" style="background:transparent;border:none;font-size:14px;color:#8888aa;cursor:pointer;padding:2px 4px">\u{1F553}</button>' +
+        '</div></div>';
     });
     html += '</div>';
   }
@@ -909,6 +1035,13 @@ function renderSettings() {
     '<div class="sl">Rules</div>' +
     '<div id="rulesList" style="display:flex;flex-direction:column;gap:6px">' +
     (D.rules || []).map(function(r){
+      if (r.type === "checkbox") {
+        return '<div style="display:flex;gap:6px;align-items:center;background:#0d0d15;border:1px solid #ffffff12;border-radius:10px;padding:8px 10px">' +
+          '<input class="inp" data-ruleid="' + r.id + '" data-field="name" value="' + esc(r.name) + '" style="flex:1;min-width:0;padding:8px 10px;font-size:14px"/>' +
+          '<span class="muted" style="font-size:11px;flex:none;padding:0 4px;white-space:nowrap">' + (r.period === "weekly" ? "Weekly \u2705" : "Daily \u2705") + '</span>' +
+          '<button data-delruleid="' + r.id + '" style="background:transparent;color:#f87171;font-size:18px;cursor:pointer;padding:0 4px;flex:none">&times;</button>' +
+          '</div>';
+      }
       return '<div style="display:flex;gap:6px;align-items:center;background:#0d0d15;border:1px solid #ffffff12;border-radius:10px;padding:8px 10px">' +
         '<input class="inp" data-ruleid="' + r.id + '" data-field="name" value="' + esc(r.name) + '" style="flex:1;min-width:0;padding:8px 10px;font-size:14px"/>' +
         '<input class="inp" type="number" min="1" max="600" data-ruleid="' + r.id + '" data-field="goalMin" value="' + r.goalMin + '" style="width:52px;min-width:0;padding:8px 6px;font-size:14px;flex:none"/>' +
@@ -917,11 +1050,22 @@ function renderSettings() {
     }).join("") +
     '</div>' +
     '<div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">' +
-    '<input class="inp" id="newRuleName" placeholder="Rule name (e.g. READING)" style="width:100%"/>' +
-    '<div style="display:flex;gap:8px">' +
-    '<input class="inp" id="newRuleMin" type="number" min="1" max="600" value="10" style="width:70px;min-width:0;flex:none"/>' +
-    '<button id="bAddRule" class="btn-go" style="flex:1">Add Rule</button>' +
+    '<input class="inp" id="newRuleName" placeholder="Rule name (e.g. READING)" value="' + esc(newRuleNameDraft) + '" style="width:100%"/>' +
+    '<div class="chips-row">' +
+    '<button class="chip' + (newRuleType === "time" ? ' active' : '') + '" id="bNewRuleTypeTime">\u23F1\uFE0F Time-based</button>' +
+    '<button class="chip' + (newRuleType === "checkbox" ? ' active' : '') + '" id="bNewRuleTypeCheckbox">\u2705 Checkbox</button>' +
     '</div>' +
+    (newRuleType === "time"
+      ? '<div style="display:flex;gap:8px">' +
+        '<input class="inp" id="newRuleMin" type="number" min="1" max="600" value="' + newRuleMinDraft + '" style="width:70px;min-width:0;flex:none"/>' +
+        '<button id="bAddRule" class="btn-go" style="flex:1">Add Rule</button>' +
+        '</div>'
+      : '<div class="chips-row">' +
+        '<button class="chip' + (newRulePeriod === "daily" ? ' active' : '') + '" id="bNewRulePeriodDaily">Daily</button>' +
+        '<button class="chip' + (newRulePeriod === "weekly" ? ' active' : '') + '" id="bNewRulePeriodWeekly">Weekly</button>' +
+        '</div>' +
+        '<button id="bAddRule" class="btn-go" style="width:100%">Add Rule</button>'
+    ) +
     '</div>' +
     '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
@@ -982,6 +1126,9 @@ function bind() {
   document.querySelectorAll(".bRuleToggle").forEach(function(btn){
     btn.onclick = function(){ toggleRuleTimer(btn.dataset.id); };
   });
+  document.querySelectorAll(".bRuleCheckToggle").forEach(function(btn){
+    btn.onclick = function(){ toggleCheckboxDone(btn.dataset.id); };
+  });
   on("bProdToggle", toggleProdTimer);
   on("bProdSetTime", setProdTime);
   var prodNote = document.getElementById("prodNote");
@@ -994,6 +1141,9 @@ function bind() {
   if (prodPlanWeek) prodPlanWeek.oninput = function(){ D.prod.planWeek = prodPlanWeek.value; save(); };
   document.querySelectorAll(".bUseExtra").forEach(function(btn){
     btn.onclick = function(){ useExtraFromHistory(parseInt(btn.dataset.idx)); };
+  });
+  document.querySelectorAll(".bEditHistory").forEach(function(btn){
+    btn.onclick = function(){ editHistoryEntry(parseInt(btn.dataset.idx)); };
   });
   var tchips = document.querySelectorAll("[data-t]");
   for (var i=0;i<tchips.length;i++) {
@@ -1114,19 +1264,32 @@ function bind() {
       var id = btn.dataset.delruleid;
       var rule = (D.rules || []).find(function(r){ return r.id === id; });
       if (!rule) return;
-      if ((rule.history && rule.history.length > 0) && !confirm('Delete "' + rule.name + '"? It has saved history that will be lost.')) return;
+      var hasHistory = (rule.history && rule.history.length > 0) || (rule.doneDates && rule.doneDates.length > 0);
+      if (hasHistory && !confirm('Delete "' + rule.name + '"? It has saved history that will be lost.')) return;
       D.rules = D.rules.filter(function(r){ return r.id !== id; });
       save(); render();
     };
   });
+  var newRuleNameInp = document.getElementById("newRuleName");
+  if (newRuleNameInp) newRuleNameInp.oninput = function(){ newRuleNameDraft = newRuleNameInp.value; };
+  var newRuleMinInp = document.getElementById("newRuleMin");
+  if (newRuleMinInp) newRuleMinInp.oninput = function(){ newRuleMinDraft = parseInt(newRuleMinInp.value) || 1; };
+  on("bNewRuleTypeTime", function(){ newRuleType = "time"; render(); });
+  on("bNewRuleTypeCheckbox", function(){ newRuleType = "checkbox"; render(); });
+  on("bNewRulePeriodDaily", function(){ newRulePeriod = "daily"; render(); });
+  on("bNewRulePeriodWeekly", function(){ newRulePeriod = "weekly"; render(); });
   on("bAddRule", function(){
-    var nameInp = document.getElementById("newRuleName");
-    var minInp = document.getElementById("newRuleMin");
-    var name = nameInp ? nameInp.value.trim() : "";
-    var min = minInp ? parseInt(minInp.value) : 10;
-    if (!name || !(min >= 1)) return;
+    var name = newRuleNameDraft.trim();
+    if (!name) return;
     D.rules = D.rules || [];
-    D.rules.push(makeRule(name, min));
+    if (newRuleType === "checkbox") {
+      D.rules.push(makeRule(name, "checkbox", {period: newRulePeriod}));
+    } else {
+      var min = newRuleMinDraft;
+      if (!(min >= 1)) return;
+      D.rules.push(makeRule(name, "time", {goalMin: min}));
+    }
+    newRuleNameDraft = ""; newRuleMinDraft = 10; newRuleType = "time"; newRulePeriod = "daily";
     save(); render();
   });
   var chat = document.getElementById("qaChat");

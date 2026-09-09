@@ -126,6 +126,31 @@ function loadData() {
 }
 function save() { try { localStorage.setItem(SK, JSON.stringify(D)); } catch(e) {} }
 
+// ── Export / Import (backs up every "fakelingo*" localStorage key) ──────────
+function exportAllData() {
+  var data = {};
+  for (var i = 0; i < localStorage.length; i++) {
+    var key = localStorage.key(i);
+    if (key.toLowerCase().indexOf("fakelingo") === 0) data[key] = localStorage.getItem(key);
+  }
+  var payload = { exportVersion: 1, exportDate: new Date().toISOString(), data: data };
+  var blob = new Blob([JSON.stringify(payload, null, 2)], {type: "application/json"});
+  var url = URL.createObjectURL(blob);
+  var a = document.createElement("a");
+  a.href = url;
+  a.download = "fakelingo-backup-" + new Date().toISOString().slice(0,10) + ".json";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+function importAllData(payload) {
+  if (!payload || typeof payload.data !== "object" || !payload.data) throw new Error("Invalid backup file");
+  Object.keys(payload.data).forEach(function(key) {
+    if (key.toLowerCase().indexOf("fakelingo") === 0) localStorage.setItem(key, payload.data[key]);
+  });
+}
+
 function getReadArticles() {
   try {
     var today = new Date().toISOString().slice(0,10);
@@ -1068,6 +1093,17 @@ function renderSettings() {
     ) +
     '</div>' +
     '</div>' +
+    '</div>' +
+    '<div class="sg">' +
+    '<div class="sl">Data Backup</div>' +
+    '<div class="muted" style="margin-top:-6px">Back up everything (English lessons, 120 min Rule, Custom Rules, topics) into one file, or restore it on another device. Login credentials are never included.</div>' +
+    '<div style="display:flex;gap:8px;margin-top:4px">' +
+    '<button class="btn-go" id="bExportData" style="flex:1">\u2B07 Export Backup</button>' +
+    '<button class="btn-go" id="bImportData" style="flex:1">\u2B06 Import Backup</button>' +
+    '</div>' +
+    '<input type="file" id="importFile" accept="application/json" style="display:none"/>' +
+    '<div id="importMsg" style="font-size:13px;display:none;margin-top:4px"></div>' +
+    '</div>' +
   '<button class="btn-primary" id="bSaveSettings">Save Settings</button></div>';
 }
 
@@ -1230,6 +1266,37 @@ function bind() {
     if (ac) { var v = parseInt(ac.value); if (v >= 2 && v <= 20) D.settings.articleCount = v; }
     save(); V="home"; render();
   });
+  on("bExportData", function(){ exportAllData(); });
+  on("bImportData", function(){
+    var f = document.getElementById("importFile");
+    if (f) f.click();
+  });
+  (function(){
+    var f = document.getElementById("importFile");
+    if (!f) return;
+    f.onchange = function(){
+      var file = f.files && f.files[0];
+      if (!file) return;
+      var reader = new FileReader();
+      reader.onload = function(e){
+        var msg = document.getElementById("importMsg");
+        try {
+          var payload = JSON.parse(e.target.result);
+          var keyCount = payload && payload.data ? Object.keys(payload.data).length : 0;
+          if (!keyCount) throw new Error("No Fakelingo data found in file");
+          var ok = window.confirm("Import backup from " + (payload.exportDate ? payload.exportDate.slice(0,10) : "unknown date") + "? This will overwrite " + keyCount + " key(s) of current data on this device.");
+          if (!ok) { f.value = ""; return; }
+          importAllData(payload);
+          if (msg) { msg.style.display="block"; msg.style.color="#4ade80"; msg.textContent="\u2705 Import successful. Reloading..."; }
+          setTimeout(function(){ location.reload(); }, 900);
+        } catch(err) {
+          if (msg) { msg.style.display="block"; msg.style.color="#f87171"; msg.textContent="\u274C Import failed: " + err.message; }
+        }
+        f.value = "";
+      };
+      reader.readAsText(file);
+    };
+  })();
   on("bAddTopic", function(){
     var inp = document.getElementById("newTopicInput");
     var val = inp ? inp.value.trim() : "";

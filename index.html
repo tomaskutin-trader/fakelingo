@@ -229,7 +229,7 @@ function ensureProdDay() {
     if (D.prod.date && (prevMin > 0 || (D.prod.note && D.prod.note.trim()))) {
       D.prod.history = D.prod.history || [];
       D.prod.history.unshift({date: D.prod.date, minutes: prevMin, note: D.prod.note || ""});
-      if (D.prod.history.length > 50) D.prod.history = D.prod.history.slice(0,50);
+      if (D.prod.history.length > 100) D.prod.history = D.prod.history.slice(0,100);
     }
     // shift the rolling plan fields one day closer, reset the timer/note/extra-bank usage for the new day
     D.prod = {
@@ -757,9 +757,9 @@ function renderProdHome() {
   html += '<div class="card"><div class="sl" style="margin-bottom:8px">\u{1F5D3}\uFE0F Plan for another week</div>';
   html += '<textarea class="qa-ta" id="prodPlanWeek" rows="3" placeholder="Next week plans...">' + esc(D.prod.planWeek || "") + '</textarea></div>';
   html += renderExtraBank(totalMin);
-  var hist = (D.prod.history || []).slice(0,50);
+  var hist = (D.prod.history || []).slice(0,100);
   html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-top:6px">';
-  html += '<div class="title" style="font-size:16px">History <span class="muted" style="font-size:11px;font-weight:400">(last 50 days)</span></div>';
+  html += '<div class="title" style="font-size:16px">History <span class="muted" style="font-size:11px;font-weight:400">(last 100 days)</span></div>';
   html += '</div>';
   if (hist.length) {
     var chronological = hist.slice().reverse();

@@ -257,7 +257,31 @@ function ensureProdDay() {
       history: D.prod.history || []
     };
   }
+  backfillRecentProdGaps();
   save();
+}
+// Self-heals any still-missing days in the last 30 days (e.g. data lost before this
+// fix existed, or any other way a day's entry failed to get recorded) by inserting
+// a 0-min placeholder for each missing date, so every day stays visible/editable.
+function backfillRecentProdGaps() {
+  D.prod.history = D.prod.history || [];
+  var existing = {};
+  D.prod.history.forEach(function(x){ existing[x.date] = true; });
+  var tp = todayKey().split("-");
+  var y = +tp[0], m = +tp[1]-1, d = +tp[2];
+  var changed = false;
+  for (var i = 1; i <= 30; i++) {
+    var key = new Date(Date.UTC(y, m, d - i)).toISOString().slice(0,10);
+    if (!existing[key]) {
+      D.prod.history.push({date: key, minutes: 0, note: ""});
+      existing[key] = true;
+      changed = true;
+    }
+  }
+  if (changed) {
+    D.prod.history.sort(function(a,b){ return a.date < b.date ? 1 : -1; });
+    if (D.prod.history.length > 100) D.prod.history = D.prod.history.slice(0,100);
+  }
 }
 function getProdTotalMs() {
   return D.prod.accumulatedMs + (D.prod.running && D.prod.runStart ? (Date.now() - D.prod.runStart) : 0);

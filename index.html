@@ -226,11 +226,26 @@ function ensureProdDay() {
   var today = todayKey();
   if (D.prod.date !== today) {
     var prevMin = Math.round(D.prod.accumulatedMs / 60000) + (D.prod.usedExtraToday || 0);
-    if (D.prod.date && (prevMin > 0 || (D.prod.note && D.prod.note.trim()))) {
-      D.prod.history = D.prod.history || [];
+    D.prod.history = D.prod.history || [];
+    if (D.prod.date) {
+      // always archive the day we're leaving, even with 0 minutes / no note,
+      // so it stays visible and editable in history
       D.prod.history.unshift({date: D.prod.date, minutes: prevMin, note: D.prod.note || ""});
-      if (D.prod.history.length > 100) D.prod.history = D.prod.history.slice(0,100);
+      // if the app wasn't opened for several days, backfill every skipped day
+      // in between as an empty (0 min) placeholder so nothing silently disappears.
+      // Use UTC-based date math throughout (matching todayKey(), which is UTC-based)
+      // so local timezone offset can never shift a day by ±1.
+      var dp = D.prod.date.split("-");
+      var cursor = new Date(Date.UTC(+dp[0], +dp[1]-1, +dp[2]));
+      var guard = 0;
+      while (guard++ < 365) {
+        cursor.setUTCDate(cursor.getUTCDate() + 1);
+        var cursorKey = cursor.toISOString().slice(0,10);
+        if (cursorKey >= today) break;
+        D.prod.history.unshift({date: cursorKey, minutes: 0, note: ""});
+      }
     }
+    if (D.prod.history.length > 100) D.prod.history = D.prod.history.slice(0,100);
     // shift the rolling plan fields one day closer, reset the timer/note/extra-bank usage for the new day
     D.prod = {
       date: today, accumulatedMs: 0, running: false, runStart: null,
